@@ -167,6 +167,17 @@ body.comparar-abierto { overflow: hidden; }
 .logos img { height: 58px; width: auto; display: block; }
 .logos img.ancho { height: 44px; }
 
+/* Contacto al pie */
+.contacto { margin: 18px 0 0 88px; font-family: var(--sans); font-size: 14.5px; }
+.contacto a { display: inline-flex; align-items: center; gap: 12px; color: var(--tinta); text-decoration: none; }
+.contacto-icono {
+  display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex-shrink: 0;
+  border-radius: 50%; background: var(--vega); color: var(--liquen); transition: background .15s;
+}
+.contacto-titulo { display: block; font-size: 12.5px; color: var(--tinta-suave); }
+.contacto a:hover .contacto-icono, .contacto a:focus-visible .contacto-icono { background: #33663d; }
+.contacto a:hover span:last-child { text-decoration: underline; text-underline-offset: 3px; }
+
 /* Recuadro de financiamiento */
 .apoyo {
   margin: 22px 0 20px; padding: 18px 20px 8px; background: #fff; border: 1px solid var(--linea);
@@ -228,6 +239,7 @@ body.visor-abierto .diario { visibility: hidden; }
   .diario { padding: 28px 16px 60px; }
   .cabecera, .acerca { padding-left: 0; margin-left: 0; }
   .logos { margin-left: 0; justify-content: center; padding: 18px; }
+  .contacto { margin-left: 0; text-align: center; }
   .logos img { height: 48px; }
   .logos img.ancho { height: 36px; }
   .campania { grid-template-columns: 1fr; margin-top: 40px; }
@@ -295,6 +307,14 @@ body.visor-abierto .diario { visibility: hidden; }
       <img src="assets/logos/ier.png" alt="IER, Instituto de Ecología Regional (CONICET y Universidad Nacional de Tucumán)" width="350" height="178">
       <img class="ancho" src="assets/logos/indya.png" alt="InDyA, Instituto de Datación y Arqueometría" width="600" height="180">
     </footer>
+    <p class="contacto">
+      <a href="mailto:cjnavarro@indya.unju.edu.ar?subject=Atlas%20Vegas%20de%20la%20Puna%20Argentina">
+        <span class="contacto-icono" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/></svg>
+        </span>
+        <span><span class="contacto-titulo">Contacto</span> cjnavarro@indya.unju.edu.ar</span>
+      </a>
+    </p>
   </main>
   <div class="mapa-col">
     <div id="mapa" aria-label="Mapa de las fotos"></div>

@@ -154,3 +154,5 @@ Después abre <http://localhost:8000>. Abrir `index.html` con doble clic no alca
 - **Tipografías:** Newsreader e Instrument Sans (Google Fonts, SIL Open Font License).
 
 Las fotografías pertenecen a su autor. Para reutilizarlas, consulta antes con él.
+
+**Contacto:** [cjnavarro@indya.unju.edu.ar](mailto:cjnavarro@indya.unju.edu.ar)
