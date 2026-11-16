@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vegas de la Puna Argentina</title>
+<meta name="description" content="Atlas fotográfico de vegas (humedales altoandinos) de la Puna argentina, a partir de fotografías de campañas de campo.">
+<meta name="author" content="Carlos Javier Navarro">
+<meta property="og:title" content="Vegas de la Puna Argentina">
+<meta property="og:description" content="Atlas fotográfico de vegas (humedales altoandinos) de la Puna argentina.">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="assets/icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icono-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,700;1,6..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {
+  --liquen: #eef1ea;
+  --liquen-2: #e2e7dc;
+  --tinta: #1e2a22;
+  --tinta-suave: #56635a;
+  --vega: #3f7a4a;
+  --ocre: #b5893a;
+  --agua: #3a6b8a;
+  --linea: rgba(30, 42, 34, 0.14);
+  --ancho-diario: 46%;
+  --serif: 'Newsreader', Georgia, serif;
+  --sans: 'Instrument Sans', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--liquen); color: var(--tinta); font-family: var(--serif); font-size: 18px; line-height: 1.55; }
+a { color: var(--agua); }
+:focus-visible { outline: 2px solid var(--agua); outline-offset: 2px; }
+button { font: inherit; cursor: pointer; }
+
+.marco { display: grid; grid-template-columns: var(--ancho-diario) 1fr; min-height: 100vh; }
+.diario { padding: 56px 48px 80px 40px; min-width: 0; }
+.mapa-col { position: sticky; top: 0; height: 100vh; border-left: 1px solid var(--linea); }
+#mapa { position: absolute; inset: 0; background: var(--liquen-2); }
+
+/* Cabecera */
+.cabecera { padding-left: 88px; max-width: 640px; }
+h1 {
+  font-size: clamp(48px, 6vw, 84px); line-height: 0.95; font-weight: 500; letter-spacing: -0.02em;
+  font-variation-settings: 'opsz' 72;
+}
+.intro { margin-top: 22px; font-size: 20px; max-width: 34em; }
+.leyenda-texto { margin-top: 14px; font-family: var(--sans); font-size: 14px; color: var(--tinta-suave); max-width: 38em; line-height: 1.5; }
+.punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: 0; margin: 0 2px; }
+.punto.lleno { background: var(--vega); }
+.punto.hueco { border: 2px solid var(--ocre); }
+.anios { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 28px; font-family: var(--sans); font-size: 14px; }
+.anios button { border: 1px solid var(--linea); background: transparent; color: var(--tinta); border-radius: 999px; padding: 5px 13px; }
+.anios button[aria-pressed="true"] { background: var(--tinta); color: var(--liquen); border-color: var(--tinta); }
+.lugar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-family: var(--sans); font-size: 14px; }
+.lugar label { display: flex; flex-direction: column; gap: 3px; color: var(--tinta-suave); font-size: 12.5px; flex: 1 1 160px; max-width: 240px; }
+.lugar select {
+  font: inherit; font-size: 14px; color: var(--tinta); background: var(--liquen); border: 1px solid var(--linea);
+  border-radius: 6px; padding: 7px 30px 7px 10px; appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--tinta-suave) 50%), linear-gradient(135deg, var(--tinta-suave) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px; background-repeat: no-repeat;
+}
+.lugar select:disabled { opacity: 0.5; cursor: default; }
+.filtro-activo { margin-top: 12px; font-family: var(--sans); font-size: 13.5px; color: var(--tinta-suave); }
+.filtro-activo button { border: none; background: none; color: var(--agua); padding: 0; text-decoration: underline; text-underline-offset: 3px; font-size: 13.5px; }
+.filtro-activo .btn-comparar {
+  margin: 0 10px 0 4px; text-decoration: none; color: var(--liquen); background: var(--vega);
+  border-radius: 999px; padding: 4px 12px; font-weight: 500;
+}
+.filtro-activo .btn-comparar:hover { background: #33663d; }
+.lugares .enlace-vega {
+  border: none; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer;
+  text-decoration: underline; text-decoration-color: rgba(30,42,34,0.3); text-underline-offset: 3px;
+}
+.lugares .enlace-vega:hover, .lugares .enlace-vega:focus-visible { color: var(--vega); text-decoration-color: var(--vega); }
+
+/* Acciones dentro del visor */
+.visor-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.visor-acciones:empty { display: none; }
+.visor-acciones button {
+  font-family: var(--sans); font-size: 13px; color: var(--liquen); background: transparent;
+  border: 1px solid rgba(238,241,234,0.35); border-radius: 999px; padding: 5px 13px;
+}
+.visor-acciones button:hover { background: rgba(238,241,234,0.14); }
+.visor-acciones .principal { background: var(--liquen); color: var(--tinta); border-color: var(--liquen); }
+.visor-acciones .principal:hover { background: #fff; }
+
+/* Comparación de una vega en el tiempo */
+.comparar {
+  position: fixed; inset: 0; z-index: 2100; background: #141c16; color: var(--liquen);
+  display: grid; grid-template-rows: auto 1fr;
+}
+.comparar[hidden] { display: none; }
+.comparar-cab { display: flex; justify-content: space-between; align-items: end; gap: 16px; padding: 20px 24px 14px; }
+.comparar-cab h2 { font-size: 30px; font-weight: 500; line-height: 1.1; }
+.comparar-cab p { font-family: var(--sans); font-size: 14px; opacity: 0.75; margin-top: 4px; }
+.comparar-botones { display: flex; gap: 8px; align-items: center; }
+.comparar-botones button {
+  font-family: var(--sans); font-size: 13px; color: var(--liquen); background: transparent;
+  border: 1px solid rgba(238,241,234,0.35); border-radius: 999px; padding: 6px 14px;
+}
+.comparar-botones button:hover { background: rgba(238,241,234,0.14); }
+.comparar-botones #comparar-cerrar { width: 40px; height: 40px; padding: 0; font-size: 17px; border-radius: 6px; }
+.comparar-paneles {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px;
+  padding: 0 24px 22px; overflow-x: auto; min-height: 0; align-content: center; align-items: start;
+}
+.panel { display: grid; grid-template-rows: auto auto auto; background: #0d130f; border-radius: 6px; overflow: hidden; }
+.panel-img { aspect-ratio: 4 / 3; max-height: calc(100vh - 230px); }
+.panel header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 12px 14px 10px; border-top: 4px solid var(--est); }
+.panel h3 { font-size: 20px; font-weight: 500; }
+.panel .estacion { font-family: var(--sans); font-size: 12.5px; color: var(--est); white-space: nowrap; }
+.panel[data-estacion="verano"] { --est: #d9a441; }
+.panel[data-estacion="otoño"] { --est: #c97a4a; }
+.panel[data-estacion="invierno"] { --est: #7fb0d1; }
+.panel[data-estacion="primavera"] { --est: #8fca7d; }
+.panel-img { min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+.panel-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.panel-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; font-family: var(--sans); font-size: 13px; }
+.panel-nav button {
+  border: none; background: rgba(238,241,234,0.1); color: var(--liquen); width: 34px; height: 30px; border-radius: 5px; font-size: 18px; line-height: 1;
+}
+.panel-nav button:hover { background: rgba(238,241,234,0.22); }
+.panel-nav button:disabled { opacity: 0.25; cursor: default; }
+.panel-nav span { opacity: 0.75; text-align: center; flex: 1; }
+body.comparar-abierto { overflow: hidden; }
+
+.aviso {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 2200;
+  background: var(--tinta); color: var(--liquen); font-family: var(--sans); font-size: 14px;
+  padding: 9px 16px; border-radius: 999px; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.aviso.visible { opacity: 1; transform: translate(-50%, 0); }
+.sin-fotos { margin: 48px 0 0 88px; font-style: italic; color: var(--tinta-suave); }
+
+/* Campañas */
+.campania { display: grid; grid-template-columns: 88px 1fr; margin-top: 56px; }
+.anio {
+  font-size: 32px; line-height: 1; padding-top: 2px; color: var(--ocre);
+  font-variant-numeric: oldstyle-nums; position: sticky; top: 24px; align-self: start;
+}
+.campania h2 { font-size: 26px; font-weight: 500; line-height: 1.2; }
+.campania h2 button {
+  border: none; background: none; color: inherit; font: inherit; text-align: left; padding: 0;
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px;
+}
+.campania h2 button:hover { text-decoration-color: var(--ocre); }
+.campania .lugares { font-style: italic; color: var(--tinta-suave); margin-top: 2px; }
+.campania .cuenta { font-family: var(--sans); font-size: 13px; color: var(--tinta-suave); margin-top: 4px; }
+.grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin-top: 16px; }
+.grilla button { border: none; padding: 0; background: var(--liquen-2); aspect-ratio: 4 / 3; overflow: hidden; }
+.grilla img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .15s; }
+.grilla button:hover img, .grilla button:focus-visible img { opacity: 0.82; }
+.grilla button.activa { outline: 3px solid var(--agua); outline-offset: -3px; }
+
+.acerca { margin: 80px 0 0 88px; max-width: 34em; border-top: 1px solid var(--linea); padding-top: 28px; }
+.acerca h2 { font-size: 24px; font-weight: 500; margin-bottom: 10px; }
+.acerca p { margin-bottom: 12px; }
+/* Logos institucionales al pie */
+.logos {
+  margin: 40px 0 0 88px; max-width: 640px; background: #fff; border: 1px solid var(--linea); border-radius: 6px;
+  padding: 22px 26px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 22px 32px;
+}
+.logos img { height: 58px; width: auto; display: block; }
+.logos img.ancho { height: 44px; }
+
+/* Recuadro de financiamiento */
+.apoyo {
+  margin: 22px 0 20px; padding: 18px 20px 8px; background: #fff; border: 1px solid var(--linea);
+  border-top: 4px solid var(--vega); border-radius: 6px; box-shadow: 0 1px 0 var(--linea);
+}
+.apoyo h3 { font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--tinta-suave); }
+.apoyo-inst { font-size: 21px; line-height: 1.25; margin: 2px 0 14px !important; }
+.apoyo-inst strong { font-weight: 500; color: var(--vega); }
+.apoyo ul { list-style: none; }
+.apoyo li { display: grid; grid-template-columns: 9.5em 1fr; gap: 0 14px; padding: 10px 0; border-top: 1px solid var(--linea); }
+.apoyo .cod { font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--vega); padding-top: 3px; grid-row: span 2; }
+.apoyo .tit { font-size: 16px; line-height: 1.35; }
+.apoyo .meta { font-family: var(--sans); font-size: 12.5px; color: var(--tinta-suave); margin-top: 2px; }
+@media (max-width: 520px) {
+  .apoyo li { grid-template-columns: 1fr; }
+  .apoyo .cod { grid-row: auto; padding-top: 0; }
+}
+.acerca .creditos { font-family: var(--sans); font-size: 13px; color: var(--tinta-suave); }
+
+/* Mapa */
+.mapa-tools { position: absolute; z-index: 500; left: 14px; bottom: 14px; right: 60px; display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--sans); font-size: 13px; pointer-events: none; }
+.mapa-tools > * { pointer-events: auto; }
+.etq-depto { background: rgba(238,241,234,0.9); border: none; box-shadow: none; font-family: var(--sans); font-size: 12px; padding: 1px 6px; border-radius: 3px; color: var(--tinta); }
+.etq-depto::before { display: none; }
+.mapa-tools button, .mapa-tools label {
+  background: rgba(238,241,234,0.94); border: 1px solid var(--linea); color: var(--tinta);
+  border-radius: 6px; padding: 6px 10px; display: inline-flex; gap: 6px; align-items: center;
+}
+.leaflet-container { font-family: var(--sans); }
+.etq-vega { background: none; border: none; box-shadow: none; color: var(--tinta); font-family: var(--serif); font-style: italic; font-size: 13px; text-shadow: 0 0 3px #fff, 0 0 3px #fff; padding: 0; }
+.etq-vega::before { display: none; }
+.satelital .etq-vega { color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; font-size: 14px; }
+
+/* Visor: ocupa la columna del diario para que el mapa quede a la vista */
+.visor {
+  position: fixed; top: 0; bottom: 0; left: 0; width: var(--ancho-diario); z-index: 2000;
+  background: rgba(20, 28, 22, 0.97); display: grid; grid-template-rows: 1fr auto;
+}
+.visor[hidden] { display: none; }
+.visor-escena { position: relative; display: flex; align-items: center; justify-content: center; padding: 64px 64px 16px; min-height: 0; }
+.visor-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.visor-nav, .visor-cerrar { position: absolute; border: none; background: rgba(238,241,234,0.12); color: var(--liquen); }
+.visor-nav { top: 50%; transform: translateY(-50%); width: 44px; height: 68px; font-size: 30px; border-radius: 6px; }
+.visor-nav:hover, .visor-cerrar:hover { background: rgba(238,241,234,0.24); }
+.visor-ant { left: 10px; } .visor-sig { right: 10px; }
+.visor-cerrar { top: 14px; right: 14px; width: 40px; height: 40px; border-radius: 6px; font-size: 18px; }
+.visor-pie { display: flex; justify-content: space-between; align-items: end; gap: 20px; padding: 12px 24px 22px; color: var(--liquen); }
+.visor-titulo { font-size: 24px; font-weight: 500; line-height: 1.2; }
+.visor-detalle { font-family: var(--sans); font-size: 14px; opacity: 0.8; }
+.visor-detalle a { color: inherit; text-underline-offset: 3px; }
+.visor-detalle a:hover { opacity: 1; color: #fff; }
+.visor-contador { font-family: var(--sans); font-size: 13px; opacity: 0.7; white-space: nowrap; }
+body.visor-abierto .diario { visibility: hidden; }
+
+@media (max-width: 900px) {
+  :root { --ancho-diario: 100%; }
+  .marco { grid-template-columns: 1fr; }
+  .mapa-col { position: sticky; top: 0; height: 42vh; z-index: 10; border-left: none; border-bottom: 1px solid var(--linea); order: -1; }
+  .diario { padding: 28px 16px 60px; }
+  .cabecera, .acerca { padding-left: 0; margin-left: 0; }
+  .logos { margin-left: 0; justify-content: center; padding: 18px; }
+  .logos img { height: 48px; }
+  .logos img.ancho { height: 36px; }
+  .campania { grid-template-columns: 1fr; margin-top: 40px; }
+  .anio { position: static; font-size: 28px; margin-bottom: 4px; }
+  .lugar label { max-width: none; }
+  .mapa-tools { left: 8px; bottom: 40px; right: 8px; gap: 4px; font-size: 11.5px; }
+  .leaflet-control-attribution { font-size: 9px; }
+  .mapa-tools button, .mapa-tools label { padding: 3px 7px; }
+  .visor { top: 42vh; width: 100%; }
+  .visor-escena { padding: 12px 12px 4px; }
+  .visor-nav { display: none; }
+  .visor-titulo { font-size: 20px; }
+  body.visor-abierto { overflow: hidden; }
+  .comparar-cab { padding: 14px 16px 10px; align-items: start; }
+  .comparar-cab h2 { font-size: 22px; }
+  .comparar-botones #comparar-enlace { display: none; }
+  .comparar-paneles {
+    grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 1fr; grid-auto-rows: max-content;
+    align-content: start; overflow-x: hidden; overflow-y: auto; padding: 0 12px 16px;
+  }
+  .panel { min-height: auto; }
+  .panel-img { max-height: 60vh; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="marco">
+  <main class="diario">
+    <header class="cabecera">
+      <h1>Vegas de la Puna Argentina</h1>
+      <p class="intro" id="intro">Fotografías de humedales altoandinos de la Puna argentina, tomadas en campañas de campo.</p>
+      <p class="leyenda-texto">Cada campaña reúne las fotos de una salida al terreno. Toca una foto para verla en grande y acercarte a su vega en el mapa, o el nombre de una campaña para ver su recorrido. En el mapa, <span class="punto lleno"></span> marca una foto con ubicación GPS y <span class="punto hueco"></span> una ubicación aproximada.</p>
+      <div class="anios" id="anios" role="group" aria-label="Filtrar por año"></div>
+      <div class="lugar">
+        <label>Provincia<select id="sel-provincia"></select></label>
+        <label>Departamento<select id="sel-departamento"></select></label>
+        <label>Vega<select id="sel-vega"></select></label>
+      </div>
+      <p class="filtro-activo" id="filtro-activo" hidden></p>
+    </header>
+    <div id="campanias"></div>
+    <section class="acerca" id="acerca">
+      <h2>Sobre el proyecto</h2>
+      <p id="acerca-texto"></p>
+      <p>Las vegas son humedales de altura alimentados por agua subterránea principalmente; sostienen la ganadería local y gran parte de la biodiversidad de la Puna. Este sitio las muestra tal como se ven en el terreno, ordenadas por lugar y fecha.</p>
+      <p>Algunas fotos no tienen GPS. Su ubicación se estimó y en el mapa se marca como aproximada.</p>
+      <p>La altitud de cada foto proviene del modelo digital de elevación Copernicus DEM GLO-30 (30 m), extraído con Google Earth Engine en el punto donde se tomó.</p>
+      <p>Fotografías: <a href="https://www.researchgate.net/profile/Carlos-Javier-Navarro" target="_blank" rel="noopener">Carlos Javier Navarro</a>.</p>
+      <aside class="apoyo" aria-labelledby="apoyo-titulo">
+        <h3 id="apoyo-titulo">Con el apoyo de</h3>
+        <p class="apoyo-inst"><strong>CONICET</strong> y <strong>Universidad Nacional de Tucumán</strong></p>
+        <ul>
+          <li><span class="cod">PICT-2018-03881</span><span class="tit">Transición de la megaherbivoría en el gradiente altitudinal del noroeste argentino</span><span class="meta">2018–2023, H. R. Grau, SCyT UNT</span></li>
+          <li><span class="cod">PICT-2018-04228</span><span class="tit">Clasificación socio-ecológica de humedales de la Puna</span><span class="meta">2018–2023, A. E. Izquierdo, SCyT UNT</span></li>
+          <li><span class="cod">PIUNT G506</span><span class="tit">Optimización territorial participativa del patrimonio socio-ambiental de la Puna argentina</span><span class="meta">2017–2019, H. R. Grau, SCyT UNT</span></li>
+          <li><span class="cod">PICT-2016-2173</span><span class="tit">Sistemas socio-ecológicos altoandinos, conflictos y toma de decisiones</span><span class="meta">2017–2022, H. R. Grau, FONCyT</span></li>
+          <li><span class="cod">PICT-2012-1565</span><span class="tit">Distribución, variabilidad ecológica y biodiversidad de los humedales de la Puna argentina</span><span class="meta">2014–2016, H. R. Grau, FONCyT</span></li>
+        </ul>
+      </aside>
+      <p class="creditos">Borde de la Puna: área de estudio del proyecto. Límites departamentales: catastros provinciales e IGM; se muestran los departamentos con al menos 5 % de su superficie en la Puna, recortados a su borde. Mapas base: © OpenTopoMap, © OpenStreetMap; imágenes satelitales y etiquetas © Esri, Maxar, Earthstar Geographics. Altitud: Copernicus DEM GLO-30 (© DLR, © Airbus Defence and Space; programa Copernicus de la UE y la ESA), procesado con Google Earth Engine.</p>
+    </section>
+    <footer class="logos" aria-label="Instituciones">
+      <img src="assets/logos/conicet.png" alt="CONICET" width="343" height="200">
+      <img src="assets/logos/ier.png" alt="IER, Instituto de Ecología Regional (CONICET y Universidad Nacional de Tucumán)" width="350" height="178">
+      <img class="ancho" src="assets/logos/indya.png" alt="InDyA, Instituto de Datación y Arqueometría" width="600" height="180">
+    </footer>
+  </main>
+  <div class="mapa-col">
+    <div id="mapa" aria-label="Mapa de las fotos"></div>
+    <div class="mapa-tools">
+      <button id="btn-todo">Ver todo</button>
+      <label><input type="checkbox" id="chk-puna" checked> Borde de la Puna</label>
+      <label><input type="checkbox" id="chk-deptos" checked> Departamentos</label>
+      <label><input type="checkbox" id="chk-poligonos"> Polígonos de vegas</label>
+    </div>
+  </div>
+</div>
+
+<section class="comparar" id="comparar" hidden role="dialog" aria-modal="true" aria-labelledby="comparar-titulo">
+  <header class="comparar-cab">
+    <div>
+      <h2 id="comparar-titulo"></h2>
+      <p id="comparar-sub"></p>
+    </div>
+    <div class="comparar-botones">
+      <button id="comparar-enlace">Copiar enlace</button>
+      <button id="comparar-cerrar" aria-label="Cerrar la comparación">✕</button>
+    </div>
+  </header>
+  <div class="comparar-paneles" id="comparar-paneles"></div>
+</section>
+<div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+<script>window.BASE = '.';</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="assets/comun.js"></script>
+<script>
+(async function () {
+  const V = window.Vegas;
+  const { resumen, fotos, vegas } = await V.cargarDatos();
+  const movimientoReducido = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('intro').textContent =
+    `Fotografías de humedales altoandinos de la Puna argentina, tomadas en campañas de campo entre ${resumen.anio_inicio} y ${resumen.anio_fin}.`;
+  document.getElementById('acerca-texto').textContent =
+    `Este atlas reúne ${resumen.total} fotografías de vegas tomadas entre ${resumen.anio_inicio} y ${resumen.anio_fin}, a altitudes de ${V.altitud(resumen.altitud_min).replace(' m s. n. m.', '')} a ${V.altitud(resumen.altitud_max)} Cada una está ubicada en el mapa según el lugar donde se sacó.`;
+
+  // Posición de cada vega muestreada, para acercar el mapa a la vega de la foto
+  const posVega = {};
+  vegas.forEach(v => { const [lon, lat] = v.geometry.coordinates; posVega[v.properties.nombre] = [lat, lon]; });
+
+  const visor = V.crearVisor({
+    alCambiar: f => { irA(f); accionesVisor(f); escribirHash(); },
+    alCerrar: () => escribirHash(),
+  });
+
+  // Mapa: relieve de lejos, satélite con etiquetas de cerca
+  const ZOOM_SATELITE = 11, ZOOM_VEGA = 15;
+  const mapa = L.map('mapa', { zoomControl: false });
+  L.control.zoom({ position: 'topright' }).addTo(mapa);
+  const relieve = V.capasBase.relieve(), hibrido = V.capasBase.hibrido();
+  let fondo = null;
+  function actualizarFondo() {
+    const sat = mapa.getZoom() >= ZOOM_SATELITE;
+    const nuevo = sat ? hibrido : relieve;
+    if (nuevo !== fondo) {
+      if (fondo) mapa.removeLayer(fondo);
+      nuevo.addTo(mapa);
+      fondo = nuevo;
+      document.getElementById('mapa').classList.toggle('satelital', sat);
+    }
+  }
+  mapa.on('zoomend', actualizarFondo);
+
+  const capaVegas = L.layerGroup().addTo(mapa);
+  vegas.forEach(v => {
+    const [lon, lat] = v.geometry.coordinates;
+    L.circleMarker([lat, lon], { radius: 3, color: '#1e2a22', weight: 1, fillColor: '#1e2a22', fillOpacity: 0.6, interactive: false })
+      .bindTooltip(v.properties.nombre, { permanent: true, direction: 'right', className: 'etq-vega', offset: [4, 0] })
+      .addTo(capaVegas);
+  });
+  const etiquetas = () => capaVegas.eachLayer(l => l.getTooltip() && l.getTooltip().setOpacity(mapa.getZoom() >= 9 ? 1 : 0));
+  mapa.on('zoomend', etiquetas);
+
+  let poligonos = null;
+  document.getElementById('chk-poligonos').onchange = async e => {
+    if (e.target.checked) {
+      poligonos = poligonos || await V.capaPoligonos({ color: '#7fd18b', weight: 1.5, fillColor: '#3f7a4a', fillOpacity: 0.25 });
+      poligonos.addTo(mapa);
+    } else if (poligonos) mapa.removeLayer(poligonos);
+  };
+
+  // Bordes de la Puna y de sus departamentos (debajo de los puntos de fotos)
+  const [gjPuna, gjDeptos] = await Promise.all(['puna.geojson', 'departamentos.geojson']
+    .map(f => fetch(V.url.data(f), { cache: 'no-cache' }).then(r => r.json())));
+  const esSatelital = () => mapa.getZoom() >= ZOOM_SATELITE;
+  // Cada borde lleva un halo debajo para leerse sobre el relieve (claro) y sobre el satélite (oscuro)
+  const halo = (sat, w) => ({ color: sat ? '#000000' : '#ffffff', weight: w, opacity: sat ? 0.45 : 0.85, fill: false, dashArray: null });
+  const estiloPuna = sat => ({ color: sat ? '#f3d27a' : '#1e2a22', weight: 2.2, opacity: 1, fill: false });
+  const estiloDepto = (sat, activo) => activo
+    ? { color: sat ? '#ffffff' : '#3a6b8a', weight: 3, opacity: 1, dashArray: null, fill: true, fillColor: '#3a6b8a', fillOpacity: sat ? 0.05 : 0.12 }
+    : { color: sat ? '#ffffff' : '#1e2a22', weight: 1.2, opacity: sat ? 0.85 : 0.75, dashArray: '5 4', fill: false };
+  const punaHalo = L.geoJSON(gjPuna, { style: halo(false, 6), interactive: false });
+  const punaLinea = L.geoJSON(gjPuna, { style: estiloPuna(false), interactive: false });
+  const deptosHalo = L.geoJSON(gjDeptos, { style: halo(false, 3), interactive: false });
+  const capaDeptos = L.geoJSON(gjDeptos, { style: () => estiloDepto(false, false), interactive: false });
+  const grupoDeptos = L.layerGroup([deptosHalo, capaDeptos]).addTo(mapa);
+  const capaPuna = L.layerGroup([punaHalo, punaLinea]).addTo(mapa);
+  const provinciaDe = {};
+  capaDeptos.eachLayer(l => { provinciaDe[l.feature.properties.nombre] = l.feature.properties.provincia; });
+  function estilizarLimites() {
+    const sat = esSatelital();
+    punaHalo.setStyle(halo(sat, 6));
+    punaLinea.setStyle(estiloPuna(sat));
+    deptosHalo.setStyle(halo(sat, 3));
+    if (etiquetaDepto) { mapa.removeLayer(etiquetaDepto); etiquetaDepto = null; }
+    capaDeptos.eachLayer(l => {
+      const activo = l.feature.properties.nombre === deptoActivo;
+      l.setStyle(estiloDepto(sat, activo));
+      if (activo) {
+        l.bringToFront();
+        // Etiqueta en el borde norte, para no tapar los puntos de fotos del interior
+        const b = l.getBounds();
+        etiquetaDepto = L.tooltip({ permanent: true, direction: 'top', className: 'etq-depto', offset: [0, -4] })
+          .setLatLng([b.getNorth(), b.getCenter().lng])
+          .setContent(`${l.feature.properties.nombre}, ${l.feature.properties.provincia}`)
+          .addTo(mapa);
+      }
+    });
+  }
+  let etiquetaDepto = null;
+  document.getElementById('chk-puna').onchange = e => e.target.checked ? capaPuna.addTo(mapa) : mapa.removeLayer(capaPuna);
+  document.getElementById('chk-deptos').onchange = e => e.target.checked ? grupoDeptos.addTo(mapa) : mapa.removeLayer(grupoDeptos);
+  mapa.on('zoomend', estilizarLimites);
+
+  const capaFotos = L.layerGroup().addTo(mapa);
+  let anioActivo = 'todos', provActiva = '', deptoActivo = '', vegaActiva = '';
+  const porAnio = () => fotos.filter(f => anioActivo === 'todos' || (f.fecha || '').startsWith(anioActivo));
+  const enLugar = () => porAnio().filter(f =>
+    (!provActiva || f.provincia === provActiva) && (!deptoActivo || f.departamento === deptoActivo));
+  const visibles = () => enLugar().filter(f => !vegaActiva || f.vega === vegaActiva);
+
+  // Campañas (mes y año) en que se fotografió cada vega, sin importar los filtros
+  const campaniasDeVega = {};
+  fotos.forEach(f => {
+    if (!f.vega) return;
+    (campaniasDeVega[f.vega] = campaniasDeVega[f.vega] || new Set()).add((f.fecha || '').slice(0, 7));
+  });
+  const comparable = v => v && campaniasDeVega[v] && campaniasDeVega[v].size > 1;
+
+  // Filtros de provincia, departamento y vega (las cifras dependen del año elegido)
+  const selP = document.getElementById('sel-provincia'), selD = document.getElementById('sel-departamento');
+  const selV = document.getElementById('sel-vega');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const ordenar = arr => arr.sort((a, b) => a.localeCompare(b, 'es'));
+  function contar(lista, campo) {
+    return lista.reduce((m, f) => { if (f[campo]) m[f[campo]] = (m[f[campo]] || 0) + 1; return m; }, {});
+  }
+  function opcionesLugar() {
+    const base = porAnio();
+    const cp = contar(base, 'provincia');
+    if (provActiva && !cp[provActiva]) provActiva = '';
+    selP.innerHTML = `<option value="">Todas (${base.length} fotos)</option>` +
+      ordenar(Object.keys(cp)).map(p => `<option value="${esc(p)}">${esc(p)} (${cp[p]})</option>`).join('');
+    selP.value = provActiva;
+    const enProv = base.filter(f => !provActiva || f.provincia === provActiva);
+    const cd = contar(enProv, 'departamento');
+    if (deptoActivo && !cd[deptoActivo]) deptoActivo = '';
+    const grupos = {};
+    Object.keys(cd).forEach(d => { (grupos[provinciaDe[d]] = grupos[provinciaDe[d]] || []).push(d); });
+    selD.innerHTML = `<option value="">Todos (${enProv.length} fotos)</option>` +
+      ordenar(Object.keys(grupos)).map(p => `<optgroup label="${esc(p)}">${
+        ordenar(grupos[p]).map(d => `<option value="${esc(d)}">${esc(d)} (${cd[d]})</option>`).join('')}</optgroup>`).join('');
+    selD.value = deptoActivo;
+    const enDepto = enProv.filter(f => !deptoActivo || f.departamento === deptoActivo);
+    const cv = contar(enDepto, 'vega');
+    if (vegaActiva && !cv[vegaActiva]) vegaActiva = '';
+    selV.innerHTML = `<option value="">Todas (${enDepto.length} fotos)</option>` +
+      ordenar(Object.keys(cv)).map(v => `<option value="${esc(v)}">${esc(v)} (${cv[v]})</option>`).join('');
+    selV.value = vegaActiva;
+    selV.disabled = !Object.keys(cv).length;
+  }
+  function textoFiltro() {
+    const el = document.getElementById('filtro-activo');
+    const lugar = vegaActiva ? `la vega ${vegaActiva}`
+      : deptoActivo ? `${deptoActivo}, ${provinciaDe[deptoActivo]}` : provActiva;
+    el.hidden = !lugar;
+    if (lugar) {
+      const n = visibles().length;
+      const comp = vegaActiva && comparable(vegaActiva)
+        ? `<button class="btn-comparar" id="btn-comparar">Comparar en ${campaniasDeVega[vegaActiva].size} campañas</button>` : '';
+      el.innerHTML = `${n} foto${n === 1 ? '' : 's'} de ${esc(lugar)}${anioActivo !== 'todos' ? ' en ' + anioActivo : ''}. ${comp}<button id="btn-quitar">Quitar filtros de lugar</button>`;
+      document.getElementById('btn-quitar').onclick = () => { provActiva = deptoActivo = vegaActiva = ''; aplicar(); encuadrar(visibles()); };
+      if (comp) document.getElementById('btn-comparar').onclick = () => abrirComparacion(vegaActiva);
+    }
+  }
+  // Destaca la vega elegida en el mapa
+  let marcaVega = null;
+  function marcarVega() {
+    if (marcaVega) { mapa.removeLayer(marcaVega); marcaVega = null; }
+    if (vegaActiva && posVega[vegaActiva]) {
+      marcaVega = L.circleMarker(posVega[vegaActiva], { radius: 22, color: '#3a6b8a', weight: 3, dashArray: '6 5', fill: false, interactive: false }).addTo(mapa);
+    }
+  }
+  function irAVega() {
+    const destino = posVega[vegaActiva];
+    if (!destino) return encuadrar(visibles());
+    const pts = visibles().map(f => [f.lat, f.lon]).concat([destino]);
+    const op = { padding: [60, 60], maxZoom: 14 };
+    movimientoReducido ? mapa.fitBounds(pts, op) : mapa.flyToBounds(pts, { ...op, duration: 0.9 });
+  }
+  function elegirVega(v) {
+    vegaActiva = v;
+    if (v) { provActiva = ''; deptoActivo = ''; }
+    aplicar();
+    v ? irAVega() : encuadrar(visibles());
+  }
+  function encuadrarLugar() {
+    const capas = [];
+    capaDeptos.eachLayer(l => {
+      const p = l.feature.properties;
+      if (deptoActivo ? p.nombre === deptoActivo : p.provincia === provActiva) capas.push(l);
+    });
+    if (!capas.length) return encuadrar(visibles());
+    const b = L.featureGroup(capas).getBounds();
+    movimientoReducido ? mapa.fitBounds(b, { padding: [30, 30] }) : mapa.flyToBounds(b, { padding: [30, 30], duration: 0.8 });
+  }
+  function aplicar() {
+    opcionesLugar(); dibujarMapa(); dibujarDiario(); estilizarLimites(); textoFiltro(); marcarVega(); escribirHash();
+  }
+  selP.onchange = () => { provActiva = selP.value; deptoActivo = ''; vegaActiva = ''; aplicar(); provActiva ? encuadrarLugar() : encuadrar(visibles()); };
+  selD.onchange = () => {
+    deptoActivo = selD.value; vegaActiva = '';
+    if (deptoActivo) provActiva = provActiva || provinciaDe[deptoActivo];
+    aplicar(); (deptoActivo || provActiva) ? encuadrarLugar() : encuadrar(visibles());
+  };
+  selV.onchange = () => {
+    vegaActiva = selV.value;
+    aplicar();
+    vegaActiva ? irAVega() : (deptoActivo || provActiva) ? encuadrarLugar() : encuadrar(visibles());
+  };
+
+  function dibujarMapa() {
+    capaFotos.clearLayers();
+    const grupos = new Map();
+    visibles().filter(f => f.lat !== null).forEach(f => {
+      const k = `${f.lat.toFixed(4)},${f.lon.toFixed(4)},${f.precision}`;
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(f);
+    });
+    grupos.forEach(items => {
+      const f0 = items[0], exacta = f0.precision === 'exacta';
+      const r = Math.min(14, 5 + Math.sqrt(items.length) * 1.6);
+      L.circleMarker([f0.lat, f0.lon], {
+        radius: r, weight: exacta ? 1.5 : 2.5, color: exacta ? '#ffffff' : '#b5893a',
+        fillColor: exacta ? '#3f7a4a' : '#ffffff', fillOpacity: exacta ? 0.95 : 0.55,
+      }).bindTooltip(`${items.length > 1 ? items.length + ' fotos' : '1 foto'}${f0.vega ? ' en la vega ' + f0.vega : ''}`, { direction: 'top' })
+        .on('click', () => visor.abrir(items, 0))
+        .addTo(capaFotos);
+    });
+  }
+  function encuadrar(lista) {
+    const pts = lista.filter(f => f.lat !== null).map(f => [f.lat, f.lon]);
+    if (!pts.length) return;
+    const op = { padding: [40, 40], maxZoom: 13 };
+    movimientoReducido ? mapa.fitBounds(pts, op) : mapa.flyToBounds(pts, { ...op, duration: 0.8 });
+  }
+
+  // Acerca el mapa a la vega de la foto (o a la foto si no está junto a una vega muestreada)
+  let marca = null;
+  function irA(f) {
+    document.querySelectorAll('.grilla button.activa').forEach(b => b.classList.remove('activa'));
+    const b = document.querySelector(`.grilla button[data-id="${f.id}"]`);
+    if (b) b.classList.add('activa');
+    if (f.lat === null) return;
+    const destino = f.vega && posVega[f.vega] ? posVega[f.vega] : [f.lat, f.lon];
+    if (marca) mapa.removeLayer(marca);
+    marca = L.circleMarker([f.lat, f.lon], { radius: 16, color: '#ffffff', weight: 3, fill: false, interactive: false }).addTo(mapa);
+    const zoom = Math.max(ZOOM_VEGA, mapa.getZoom() > ZOOM_VEGA ? mapa.getZoom() : ZOOM_VEGA);
+    const lejos = mapa.distance(mapa.getCenter(), destino) > 5000 || mapa.getZoom() < ZOOM_SATELITE;
+    if (movimientoReducido || !lejos) mapa.setView(destino, zoom, { animate: !movimientoReducido });
+    else mapa.flyTo(destino, zoom, { duration: 1.1 });
+  }
+
+  // Diario de campañas
+  const contenedor = document.getElementById('campanias');
+  function dibujarDiario() {
+    const camps = V.campanias(visibles());
+    if (!camps.length) {
+      contenedor.innerHTML = '<p class="sin-fotos">No hay fotos para esta combinación de año y lugar. Elige otro año o «Todas» en provincia.</p>';
+      return;
+    }
+    let ultimoAnio = null;
+    contenedor.innerHTML = camps.map((c, ci) => {
+      const mostrarAnio = c.anio !== ultimoAnio; ultimoAnio = c.anio;
+      const enlaces = c.vegas.slice(0, 6).map(v =>
+        `<button class="enlace-vega" data-v="${esc(v)}" title="Ver solo las fotos de la vega ${esc(v)}">${esc(v)}</button>`);
+      const lugaresTxt = c.vegas.length && !vegaActiva ? enlaces.join(', ') + (c.vegas.length > 6 ? ` y ${c.vegas.length - 6} más` : '') : '';
+      return `<section class="campania">
+        <div class="anio" aria-hidden="true">${mostrarAnio && /^\d{4}$/.test(c.anio) ? c.anio : ''}</div>
+        <div>
+          <h2><button data-c="${ci}">${c.titulo.charAt(0).toUpperCase() + c.titulo.slice(1)}</button></h2>
+          ${lugaresTxt ? `<p class="lugares">${lugaresTxt}</p>` : ''}
+          <p class="cuenta">${c.items.length} foto${c.items.length > 1 ? 's' : ''}</p>
+          <div class="grilla">${c.items.map((f, i) => `<button data-c="${ci}" data-i="${i}" data-id="${f.id}" aria-label="Ver foto${f.vega ? ' de la vega ' + f.vega : ''} del ${V.fechaLarga(f.fecha)}"><img loading="lazy" src="${V.url.mini(f.id)}" alt="" width="${f.ancho}" height="${f.alto}"></button>`).join('')}</div>
+        </div>
+      </section>`;
+    }).join('');
+    contenedor.querySelectorAll('h2 button').forEach(b => b.onclick = () => encuadrar(camps[b.dataset.c].items));
+    contenedor.querySelectorAll('.enlace-vega').forEach(b => b.onclick = () => {
+      elegirVega(b.dataset.v);
+      document.querySelector('.lugar').scrollIntoView({ behavior: movimientoReducido ? 'auto' : 'smooth', block: 'start' });
+    });
+    contenedor.querySelectorAll('.grilla button').forEach(b => {
+      const c = camps[b.dataset.c];
+      b.onclick = () => visor.abrir(c.items, +b.dataset.i);   // abrir() llama a irA(): zoom inmediato a la vega
+    });
+  }
+
+  // ---------- Comparar una vega en el tiempo ----------
+  const comparar = document.getElementById('comparar');
+  let vegaComparada = '', focoAntesComparar = null;
+  const mayuscula = s => s.charAt(0).toUpperCase() + s.slice(1);
+  function abrirComparacion(v) {
+    if (!comparable(v)) return;
+    focoAntesComparar = document.activeElement;
+    visor.cerrar();
+    vegaComparada = v;
+    const deLaVega = fotos.filter(f => f.vega === v);
+    const camps = V.campanias(deLaVega);
+    const alts = deLaVega.map(f => f.altitud).filter(Boolean);
+    const media = alts.length ? Math.round(alts.reduce((a, b) => a + b, 0) / alts.length) : null;
+    document.getElementById('comparar-titulo').textContent = `Vega ${v} a lo largo del tiempo`;
+    document.getElementById('comparar-sub').textContent =
+      `${camps.length} campañas entre ${camps[0].anio} y ${camps[camps.length - 1].anio}, ${deLaVega.length} fotos` +
+      (media ? `, a unos ${V.altitud(media)}` : '.');
+    const cont = document.getElementById('comparar-paneles');
+    cont.innerHTML = camps.map((c, ci) => {
+      const est = V.estacion(c.clave);
+      return `<article class="panel" data-estacion="${est}" data-c="${ci}">
+        <header><h3>${mayuscula(c.titulo)}</h3><span class="estacion">${est}</span></header>
+        <div class="panel-img"><img alt=""></div>
+        <div class="panel-nav">
+          <button class="ant" aria-label="Foto anterior de ${c.titulo}">‹</button>
+          <span></span>
+          <button class="sig" aria-label="Foto siguiente de ${c.titulo}">›</button>
+        </div>
+      </article>`;
+    }).join('');
+    cont.querySelectorAll('.panel').forEach(p => {
+      const items = camps[p.dataset.c].items;
+      const img = p.querySelector('img'), txt = p.querySelector('.panel-nav span');
+      const ant = p.querySelector('.ant'), sig = p.querySelector('.sig');
+      let i = 0;
+      const pintar = () => {
+        const f = items[i];
+        img.src = V.url.foto(f.id);
+        img.alt = `Vega ${v}, ${V.fechaLarga(f.fecha)}`;
+        txt.textContent = items.length > 1 ? `${V.fechaLarga(f.fecha)}, ${i + 1} de ${items.length}` : V.fechaLarga(f.fecha);
+        ant.disabled = i === 0; sig.disabled = i === items.length - 1;
+        ant.style.visibility = sig.style.visibility = items.length > 1 ? 'visible' : 'hidden';
+      };
+      ant.onclick = () => { if (i > 0) { i--; pintar(); } };
+      sig.onclick = () => { if (i < items.length - 1) { i++; pintar(); } };
+      pintar();
+    });
+    comparar.hidden = false;
+    document.body.classList.add('comparar-abierto');
+    cont.scrollLeft = 0; cont.scrollTop = 0;
+    document.getElementById('comparar-cerrar').focus();
+    escribirHash();
+  }
+  function cerrarComparacion() {
+    if (comparar.hidden) return;
+    comparar.hidden = true;
+    document.body.classList.remove('comparar-abierto');
+    vegaComparada = '';
+    if (focoAntesComparar && document.contains(focoAntesComparar)) focoAntesComparar.focus();
+    escribirHash();
+  }
+  document.getElementById('comparar-cerrar').onclick = cerrarComparacion;
+  document.getElementById('comparar-enlace').onclick = () => copiarEnlace();
+  document.addEventListener('keydown', e => { if (!comparar.hidden && e.key === 'Escape') cerrarComparacion(); });
+
+  // Botones dentro del visor: comparar la vega en el tiempo y copiar el enlace a la foto
+  function accionesVisor(f) {
+    const cont = visor.acciones;
+    cont.innerHTML = '';
+    if (comparable(f.vega)) {
+      const b = document.createElement('button');
+      b.className = 'principal';
+      b.textContent = `Ver esta vega en ${campaniasDeVega[f.vega].size} campañas`;
+      b.onclick = () => abrirComparacion(f.vega);
+      cont.appendChild(b);
+    }
+    const e = document.createElement('button');
+    e.textContent = 'Copiar enlace a esta foto';
+    e.onclick = () => copiarEnlace();
+    cont.appendChild(e);
+  }
+  const aviso = document.getElementById('aviso');
+  let avisoT = null;
+  function mostrarAviso(t) {
+    aviso.textContent = t; aviso.classList.add('visible');
+    clearTimeout(avisoT); avisoT = setTimeout(() => aviso.classList.remove('visible'), 2200);
+  }
+  async function copiarEnlace() {
+    escribirHash();
+    mostrarAviso(await V.copiar(location.href) ? 'Enlace copiado' : 'No se pudo copiar: copia la dirección del navegador');
+  }
+
+  // ---------- Enlaces compartibles: el estado vive en la dirección (#anio=…&vega=…&foto=…) ----------
+  let leyendoHash = false;
+  function escribirHash() {
+    if (leyendoHash) return;
+    const p = new URLSearchParams();
+    if (anioActivo !== 'todos') p.set('anio', anioActivo);
+    if (provActiva) p.set('provincia', V.slug(provActiva));
+    if (deptoActivo) p.set('departamento', V.slug(deptoActivo));
+    if (vegaActiva) p.set('vega', V.slug(vegaActiva));
+    const f = visor.actual;
+    if (f) p.set('foto', f.id);
+    if (vegaComparada) p.set('comparar', V.slug(vegaComparada));
+    const h = p.toString();
+    if (h ? location.hash !== '#' + h : location.hash) {
+      history.replaceState(null, '', h ? '#' + h : location.pathname + location.search);
+    }
+  }
+  function encuadrarSegunFiltros() {
+    vegaActiva ? irAVega() : (deptoActivo || provActiva) ? encuadrarLugar() : encuadrar(visibles());
+  }
+  function leerHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    const buscar = (lista, s) => (s && lista.find(x => V.slug(x) === s)) || '';
+    leyendoHash = true;
+    const a = p.get('anio');
+    anioActivo = a && anios.includes(a) ? a : 'todos';
+    marcarAnio();
+    provActiva = buscar([...new Set(fotos.map(f => f.provincia).filter(Boolean))], p.get('provincia'));
+    deptoActivo = buscar(Object.keys(provinciaDe), p.get('departamento'));
+    if (deptoActivo && !provActiva) provActiva = provinciaDe[deptoActivo];
+    vegaActiva = buscar(Object.keys(campaniasDeVega), p.get('vega'));
+    if (!comparar.hidden) cerrarComparacion();
+    aplicar();
+    leyendoHash = false;
+    const foto = p.get('foto') && fotos.find(f => f.id === p.get('foto'));
+    const comp = buscar(Object.keys(campaniasDeVega), p.get('comparar'));
+    if (comp) { encuadrarSegunFiltros(); abrirComparacion(comp); }
+    else if (foto) {
+      const camp = V.campanias(visibles()).find(c => c.items.includes(foto));
+      camp ? visor.abrir(camp.items, camp.items.indexOf(foto)) : visor.abrir([foto], 0);
+    } else { visor.cerrar(); encuadrarSegunFiltros(); }
+    escribirHash();   // normaliza la dirección (descarta valores que no existen)
+  }
+  window.addEventListener('hashchange', leerHash);
+
+  // Años
+  const anios = ['todos', ...new Set(fotos.map(f => (f.fecha || '').slice(0, 4)).filter(Boolean))];
+  const barra = document.getElementById('anios');
+  barra.innerHTML = anios.map(a => `<button aria-pressed="${a === 'todos'}" data-a="${a}">${a === 'todos' ? 'Todos los años' : a}</button>`).join('');
+  function marcarAnio() { barra.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.a === anioActivo)); }
+  barra.querySelectorAll('button').forEach(b => b.onclick = () => {
+    anioActivo = b.dataset.a;
+    marcarAnio(); aplicar(); encuadrar(visibles());
+  });
+  document.getElementById('btn-todo').onclick = () => { if (marca) { mapa.removeLayer(marca); marca = null; } encuadrar(visibles()); };
+
+  mapa.invalidateSize();
+  mapa.fitBounds(fotos.map(f => [f.lat, f.lon]), { padding: [40, 40] });
+  actualizarFondo(); etiquetas();
+  if (location.hash.length > 1) leerHash(); else aplicar();
+  window.addEventListener('resize', () => mapa.invalidateSize());
+})();
+</script>
+</body>
+</html>

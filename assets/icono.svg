@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Vegas de la Puna Argentina</title>
+  <defs>
+    <clipPath id="marco"><rect width="64" height="64" rx="14"/></clipPath>
+  </defs>
+  <g clip-path="url(#marco)">
+    <!-- cielo -->
+    <rect width="64" height="64" fill="#eef1ea"/>
+    <!-- cerros -->
+    <path d="M-2 50 L20 24 L27 32 L38 13 L66 50 Z" fill="#56635a"/>
+    <path d="M38 13 L66 50 L48 50 Z" fill="#3f4b44"/>
+    <!-- nieve en la cumbre -->
+    <path d="M38 13 L44 23 L40.6 21.2 L38 24 L35.4 21 L33.4 22.3 Z" fill="#ffffff"/>
+    <!-- suelo de la Puna -->
+    <path d="M-2 47 C8 44.5 14 47.5 22 46 C30 44.6 36 47 44 45.8 C52 44.8 58 46.6 66 46 L66 66 L-2 66 Z" fill="#9a7653"/>
+    <!-- vega: franja verde vertical e irregular, desde la parte baja de la ladera -->
+    <path d="M34 38 L32.9 41 L32.3 43.6 L31.2 46.4 L30.6 49.2 L29.4 52 L28.7 55 L27.6 58 L27 61 L37.4 61 L36.6 58 L36.9 55 L36 52 L36.1 49.2 L35.4 46.4 L35.6 43.6 L35 41 L34.8 38 Z" fill="#4f8a4f"/>
+    <!-- hilo de agua por el medio de la vega -->
+    <path d="M34.3 41 C33.6 43 34.4 45 33.6 47 C32.9 49 33.6 51 32.8 53.2 C32.2 55 32.7 56.6 32.2 58.4"
+          fill="none" stroke="#8fc3e3" stroke-width="0.7" stroke-linecap="round"/>
+  </g>
+</svg>
