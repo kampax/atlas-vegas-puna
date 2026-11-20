@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,700;1,6..72,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/chat.css">
 <style>
 :root {
   --liquen: #eef1ea;
@@ -265,6 +266,23 @@ body.visor-abierto .diario { visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
+<script>
+  // Métricas de visitas con GoatCounter (sin cookies). CODIGO: el código del sitio en goatcounter.com.
+  // No se carga en localhost/127.0.0.1 ni mientras el código siga siendo el marcador.
+  (function () {
+    var CODIGO = 'CODIGO_GOATCOUNTER';
+    window.metrica = function (nombre, titulo) {   // cuenta un evento (abrir chat, abrir visor...)
+      if (window.goatcounter && window.goatcounter.count)
+        window.goatcounter.count({ path: nombre, title: titulo || nombre, event: true });
+    };
+    if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.protocol === 'file:') return;
+    if (!CODIGO || CODIGO === 'CODIGO_GOATCOUNTER') return;
+    var s = document.createElement('script');
+    s.async = true; s.src = 'https://gc.zgo.at/count.js';
+    s.setAttribute('data-goatcounter', 'https://' + CODIGO + '.goatcounter.com/count');
+    document.head.appendChild(s);
+  })();
+</script>
 </head>
 <body>
 <div class="marco">
@@ -293,11 +311,11 @@ body.visor-abierto .diario { visibility: hidden; }
         <h3 id="apoyo-titulo">Con el apoyo de</h3>
         <p class="apoyo-inst"><strong>CONICET</strong> y <strong>Universidad Nacional de Tucumán</strong></p>
         <ul>
-          <li><span class="cod">PICT-2018-03881</span><span class="tit">Transición de la megaherbivoría en el gradiente altitudinal del noroeste argentino</span><span class="meta">2018–2023, H. R. Grau, SCyT UNT</span></li>
-          <li><span class="cod">PICT-2018-04228</span><span class="tit">Clasificación socio-ecológica de humedales de la Puna</span><span class="meta">2018–2023, A. E. Izquierdo, SCyT UNT</span></li>
-          <li><span class="cod">PIUNT G506</span><span class="tit">Optimización territorial participativa del patrimonio socio-ambiental de la Puna argentina</span><span class="meta">2017–2019, H. R. Grau, SCyT UNT</span></li>
-          <li><span class="cod">PICT-2016-2173</span><span class="tit">Sistemas socio-ecológicos altoandinos, conflictos y toma de decisiones</span><span class="meta">2017–2022, H. R. Grau, FONCyT</span></li>
-          <li><span class="cod">PICT-2012-1565</span><span class="tit">Distribución, variabilidad ecológica y biodiversidad de los humedales de la Puna argentina</span><span class="meta">2014–2016, H. R. Grau, FONCyT</span></li>
+          <li><span class="cod">PICT-2018-03881</span><span class="tit">Transición de la megaherbivoría en el gradiente altitudinal del noroeste argentino</span><span class="meta">2018–2023, H. R. Grau, FONCyT, Agencia I+D+i</span></li>
+          <li><span class="cod">PICT-2018-04228</span><span class="tit">Clasificación socio-ecológica de humedales de la Puna</span><span class="meta">2018–2023, A. E. Izquierdo, FONCyT, Agencia I+D+i</span></li>
+          <li><span class="cod">PIUNT G506</span><span class="tit">Optimización territorial participativa del patrimonio socio-ambiental de la Puna argentina</span><span class="meta">2017–2019, H. R. Grau, SCAIT UNT</span></li>
+          <li><span class="cod">PICT-2016-2173</span><span class="tit">Sistemas socio-ecológicos altoandinos, conflictos y toma de decisiones</span><span class="meta">2017–2022, H. R. Grau, FONCyT, Agencia I+D+i</span></li>
+          <li><span class="cod">PICT-2012-1565</span><span class="tit">Distribución, variabilidad ecológica y biodiversidad de los humedales de la Puna argentina</span><span class="meta">2014–2016, H. R. Grau, FONCyT, Agencia I+D+i</span></li>
         </ul>
       </aside>
       <p class="creditos">Borde de la Puna: área de estudio del proyecto. Límites departamentales: catastros provinciales e IGM; se muestran los departamentos con al menos 5 % de su superficie en la Puna, recortados a su borde. Mapas base: © OpenTopoMap, © OpenStreetMap; imágenes satelitales y etiquetas © Esri, Maxar, Earthstar Geographics. Altitud: Copernicus DEM GLO-30 (© DLR, © Airbus Defence and Space; programa Copernicus de la UE y la ESA), procesado con Google Earth Engine.</p>
@@ -782,5 +800,14 @@ body.visor-abierto .diario { visibility: hidden; }
   window.addEventListener('resize', () => mapa.invalidateSize());
 })();
 </script>
+<script>
+  // Chat del personaje. url: dirección del Worker publicado (vacía = chat oculto en el sitio publicado).
+  window.CHAT = {
+    url: '',
+    nombre: 'Doña Vicuña',
+    saludo: '¡Hola! Soy Doña Vicuña y paso la vida entre vegas y bofedales. Preguntame lo que quieras sobre estos humedales de los Andes: te respondo con lo que dicen los estudios.'
+  };
+</script>
+<script src="assets/chat.js"></script>
 </body>
 </html>

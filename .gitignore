@@ -2,3 +2,25 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Wiki de bibliografía y PDFs (local, no se publica)
+/wiki/
+*.pdf
+
+# Paquete de conocimiento del bot (se genera desde la wiki)
+bot/conocimiento.js
+bot/indice_rag.js
+
+# Secretos y dependencias locales
+.dev.vars
+bot/.dev.vars
+bot/.wrangler/
+.env
+.env.*
+node_modules/
+bot/node_modules/
+
+# Python y logs
+__pycache__/
+*.pyc
+*.log

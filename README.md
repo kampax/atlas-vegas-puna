@@ -1,6 +1,6 @@
 # Vegas de la Puna Argentina
 
-Atlas fotográfico de **vegas de la Puna argentina**: una representación visual de estos humedales altoandinos a partir de las fotografías tomadas en campañas de campo.
+Proyecto personal de atlas fotográfico de **vegas de la Puna argentina**: una representación visual de estos humedales altoandinos a partir de las fotografías tomadas en campañas de campo.
 
 Las vegas (o bofedales) son humedales de altura alimentados principalmente por agua subterránea. En la Puna sostienen la ganadería local y gran parte de la biodiversidad regional. Este sitio muestra cómo se ven en el terreno, ordenadas por lugar y por fecha.
 
@@ -87,11 +87,21 @@ Cada foto se asigna al departamento que la contiene. Unas pocas caen justo fuera
 | Tucumán | Tafí del Valle | 27 |
 <!-- /auto:departamentos -->
 
+## Chatbot bibliográfico (Doña Vicuña)
+
+El sitio incluye un asistente de consultas (**Doña Vicuña**) pensado como **un pequeño experimento** para responder preguntas sobre vegas, bofedales, turberas y humedales altoandinos usando **exclusivamente una selección de artículos científicos** sobre estos ecosistemas (citando las fuentes en cada respuesta). No pretende abarcar ni representar toda la bibliografía existente sobre el tema.
+
+- **Artículos incluidos:** el listado completo y actualizable con autores, año, título, DOI y temática general está en [BIBLIOGRAFIA.md](BIBLIOGRAFIA.md).
+- **Sugerir artículos nuevos:** si conocés trabajos científicos sobre vegas o bofedales que deberían sumarse, podés proponerlos abriendo un **Issue** en el repositorio (indicando título, año y DOI o enlace).
+
 ## Estructura
 
 ```
 index.html                       Página del sitio
 assets/comun.js                  Carga de datos, mapas base y visor de fotos
+assets/chat.js, chat.css         Interfaz del chatbot bibliográfico
+assets/vicuna.jpg                Avatar del chatbot
+bot/                             Worker de Cloudflare y servidor local del chat
 data/fotos.json                  Fecha, ubicación y vega de cada foto
 data/vegas_muestreadas.geojson   58 puntos de muestreo de vegas
 data/vegas.geojson               Polígonos de vegas (simplificados)
@@ -99,6 +109,7 @@ data/puna.geojson                Borde del área de la Puna argentina
 data/departamentos.geojson       Departamentos de la Puna, recortados al borde, con su provincia
 fotos/                           Fotos para el visor (máx. 1600 px)
 miniaturas/                      Miniaturas (máx. 480 px)
+BIBLIOGRAFIA.md                  Listado de artículos científicos usados por el chatbot
 ```
 
 Cada foto de `data/fotos.json` tiene estos campos:
@@ -133,19 +144,47 @@ Después abre <http://localhost:8000>. Abrir `index.html` con doble clic no alca
 3. En **Build and deployment**, elige **Deploy from a branch**, la rama `main` y la carpeta `/ (root)`.
 4. En uno o dos minutos el sitio queda en `https://<usuario>.github.io/atlas-vegas-puna/`.
 
+## Métricas de visitas
+
+El sitio cuenta visitas con [GoatCounter](https://www.goatcounter.com/), gratis para uso no comercial. No usa cookies ni guarda datos personales, así que no hace falta un aviso de cookies.
+
+**Qué se mide**
+
+- Visitas a la página: cuántas, desde qué sitio llegan (referer), país, navegador, sistema y tamaño de pantalla.
+- Dos eventos, que aparecen en el panel como rutas propias:
+  - `abrir-visor`: alguien abre el visor de fotos (se cuenta al abrirlo, no al pasar de una foto a otra).
+  - `abrir-chat`: alguien abre el chat de Doña Vicuña (solo si el chat está activo).
+
+**Dónde se ven**
+
+En `https://<código>.goatcounter.com`, con la cuenta de GoatCounter. Desde **Settings** se puede hacer público el panel.
+
+**Cómo activarlas o cambiar el código**
+
+1. Crea una cuenta en <https://www.goatcounter.com/signup> y elige un código para el sitio (por ejemplo `atlas-vegas-puna`).
+2. En `index.html`, dentro del `<script>` de métricas del `<head>`, reemplaza `CODIGO_GOATCOUNTER` por ese código:
+
+   ```js
+   var CODIGO = 'atlas-vegas-puna';
+   ```
+
+3. Sube el cambio. Mientras quede `CODIGO_GOATCOUNTER`, el script no se carga.
+
+En `localhost`, `127.0.0.1` y al abrir el archivo directamente, las métricas no se cargan, así que las pruebas locales no se cuentan. Para agregar otro evento, llama a `window.metrica('nombre-del-evento', 'Título legible')` desde el código del sitio.
+
 ## Créditos
 
 - **Fotografías:** [Carlos Javier Navarro](https://www.researchgate.net/profile/Carlos-Javier-Navarro).
 - **Instituciones:** CONICET; Instituto de Ecología Regional (IER, CONICET y UNT); Instituto de Datación y Arqueometría (InDyA). Sus logos están en `assets/logos/`.
-- **Apoyo institucional:** CONICET y Universidad Nacional de Tucumán (UNT), a través de estos proyectos:
+- **Financiamiento:** Agencia Nacional de Promoción de la Investigación, el Desarrollo Tecnológico y la Innovación (Agencia I+D+i, ex ANPCyT), a través del Fondo para la Investigación Científica y Tecnológica (FONCyT), y Universidad Nacional de Tucumán (UNT). Los proyectos se ejecutaron en el IER (CONICET-UNT):
 
 | Proyecto | Período | Título (abreviado) | Responsable | Financiamiento |
 |---|---|---|---|---|
-| PICT-2018-03881 | 2018-2023 | Transición de la megaherbivoría en el gradiente altitudinal del noroeste argentino | H. R. Grau | SCyT, UNT |
-| PICT-2018-04228 | 2018-2023 | Clasificación socio-ecológica de humedales de la Puna | A. E. Izquierdo | SCyT, UNT |
-| PIUNT G506 | 2017-2019 | Optimización territorial participativa del patrimonio socio-ambiental de la Puna argentina | H. R. Grau | SCyT, UNT |
-| PICT-2016-2173 | 2017-2022 | Sistemas socio-ecológicos altoandinos, conflictos y toma de decisiones | H. R. Grau | FONCyT |
-| PICT-2012-1565 | 2014-2016 | Distribución, variabilidad ecológica y biodiversidad de los humedales de la Puna argentina | H. R. Grau | FONCyT |
+| PICT-2018-03881 | 2018-2023 | Transición de la megaherbivoría en el gradiente altitudinal del noroeste argentino | H. R. Grau | FONCyT, Agencia I+D+i |
+| PICT-2018-04228 | 2018-2023 | Clasificación socio-ecológica de humedales de la Puna | A. E. Izquierdo | FONCyT, Agencia I+D+i |
+| PIUNT G506 | 2017-2019 | Optimización territorial participativa del patrimonio socio-ambiental de la Puna argentina | H. R. Grau | SCAIT, UNT |
+| PICT-2016-2173 | 2017-2022 | Sistemas socio-ecológicos altoandinos, conflictos y toma de decisiones | H. R. Grau | FONCyT, Agencia I+D+i |
+| PICT-2012-1565 | 2014-2016 | Distribución, variabilidad ecológica y biodiversidad de los humedales de la Puna argentina | H. R. Grau | FONCyT, Agencia I+D+i |
 
 - **Mapas base:** © OpenTopoMap (CC-BY-SA) y © colaboradores de OpenStreetMap; imágenes satelitales y etiquetas © Esri, Maxar, Earthstar Geographics.
 - **Límites:** borde de la Puna según el área de estudio del proyecto; límites departamentales de los catastros provinciales y del IGM. Verificación de departamentos con FAO GAUL (vía Google Earth Engine).

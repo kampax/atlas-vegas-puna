@@ -146,6 +146,7 @@
     }
     function abrir(l, i) {
       lista = l; idx = i; foco = document.activeElement;
+      if (el.hidden && window.metrica) window.metrica('abrir-visor', 'Abrir el visor de fotos');   // solo al abrirlo, no al cambiar de foto
       el.hidden = false; document.body.classList.add('visor-abierto');
       pintar(); el.querySelector('.visor-cerrar').focus();
     }

@@ -1,0 +1,23 @@
+name = "atlas-vegas-bot"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ORIGENES = "https://kampax.github.io"
+# Modo de contexto: "rag" (fragmentos relevantes por BM25, por defecto) o "completo" (wiki entera)
+MODO = "rag"
+# Ajustes opcionales para MODO = "rag":
+# RAG_K = "8"
+# RAG_MAX_TOKENS = "6000"
+# Servicio de respuestas: "glm", "deepseek" o "gemini"
+PROVEEDOR = "glm"
+# Si el principal falla o está saturado, se prueba con estos (en orden, separados por coma)
+RESPALDO = "deepseek"
+MODELO_GLM = "glm-4.7-flash"
+MODELO = "deepseek-flash"
+MODELO_GEMINI = "gemini-2.5-flash"
+
+# Las claves van como secreto, nunca acá (solo hace falta la del proveedor elegido):
+#   npx wrangler secret put GLM_API_KEY
+#   npx wrangler secret put DEEPSEEK_API_KEY
+#   npx wrangler secret put GEMINI_API_KEY

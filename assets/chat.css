@@ -1,0 +1,142 @@
+/* Chat del personaje del atlas (usa las variables de color y tipografía de index.html) */
+.chat-boton {
+  position: fixed; right: 20px; bottom: 100px; z-index: 1200;  /* por encima de la barra de controles del mapa */
+  display: flex; align-items: center; gap: 10px;
+  border: none; border-radius: 999px; padding: 8px 18px 8px 8px;
+  background: var(--tinta); color: var(--liquen);
+  font-family: var(--sans); font-size: 15px; font-weight: 500;
+  box-shadow: 0 6px 20px rgba(30, 42, 34, 0.25);
+}
+.chat-boton:hover { background: #2c3b31; }
+.chat-avatar {
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--ocre); border: 1.5px solid var(--ocre); overflow: hidden;
+}
+.chat-avatar img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transform-origin: 50% 95%;   /* gira desde el cuello, como si moviera la cabeza */
+  animation: chat-curiosa 7s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+.chat-boton .chat-avatar { animation: chat-halo 3.2s ease-in-out infinite; }
+.chat-boton .chat-avatar img { animation: chat-curiosa 7s ease-in-out infinite, chat-saludo 16s ease-in-out 2s infinite; }
+.chat-boton:hover .chat-avatar img { animation: chat-mira 0.9s ease-in-out infinite alternate; }
+
+/* Estados de Doña Vicuña en la cabecera del chat (clases que pone chat.js) */
+.chat-panel.pensando .chat-cabecera .chat-avatar img { animation: chat-piensa 2.4s ease-in-out infinite; }
+.chat-panel.hablando .chat-cabecera .chat-avatar img { animation: chat-habla 0.42s ease-in-out infinite; }
+.chat-panel.contenta .chat-cabecera .chat-avatar img { animation: chat-salto 0.7s ease-out 1; }
+
+/* Quieta casi todo el tiempo; de vez en cuando ladea la cabeza a un lado y al otro */
+@keyframes chat-curiosa {
+  0%, 55%, 100% { transform: rotate(0) translateY(0); }
+  62% { transform: rotate(-9deg) translateY(-1px); }
+  70% { transform: rotate(-9deg) translateY(-1px); }
+  78% { transform: rotate(6deg); }
+  85% { transform: rotate(6deg); }
+  92% { transform: rotate(0); }
+}
+/* Cada tanto se asoma y saluda para llamar la atención */
+@keyframes chat-saludo {
+  0%, 88%, 100% { translate: 0 0; scale: 1; }
+  91% { translate: 0 18%; scale: 1; }
+  94% { translate: 0 -6%; scale: 1.06; }
+  97% { translate: 0 0; scale: 1; }
+}
+@keyframes chat-mira {
+  from { transform: rotate(-7deg) scale(1.08); }
+  to { transform: rotate(5deg) scale(1.08); }
+}
+/* Pensando: mira hacia arriba y hacia los costados, despacio */
+@keyframes chat-piensa {
+  0%, 100% { transform: rotate(0) translate(0, 0); }
+  25% { transform: rotate(-10deg) translate(-1px, -1px); }
+  50% { transform: rotate(-4deg) translate(0, -2px); }
+  75% { transform: rotate(8deg) translate(1px, -1px); }
+}
+/* Hablando: cabeceo corto, como quien mastica las palabras */
+@keyframes chat-habla {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(1.5px) rotate(-2deg) scaleY(0.98); }
+}
+/* Terminó de responder: un saltito */
+@keyframes chat-salto {
+  0% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-4px) scale(1.08, 0.96); }
+  60% { transform: translateY(0) scale(0.97, 1.03); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes chat-halo {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(181, 137, 58, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(181, 137, 58, 0); }
+}
+
+.chat-panel {
+  position: fixed; right: 20px; bottom: 20px; z-index: 1300;
+  width: min(420px, calc(100vw - 32px)); height: min(620px, calc(100vh - 40px));
+  display: flex; flex-direction: column;
+  background: var(--liquen); border: 1px solid var(--linea); border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(30, 42, 34, 0.28); overflow: hidden;
+}
+.chat-panel[hidden] { display: none; }
+.chat-cabecera .chat-avatar { width: 40px; height: 40px; }
+.chat-cabecera {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: var(--tinta); color: var(--liquen); font-family: var(--sans);
+}
+.chat-cabecera strong { font-weight: 600; font-size: 15px; display: block; }
+.chat-cabecera span { font-size: 12.5px; opacity: 0.75; }
+.chat-cabecera div { flex: 1; min-width: 0; }
+.chat-cabecera button {
+  border: none; background: transparent; color: inherit; font-size: 13px;
+  padding: 6px 8px; border-radius: 6px; opacity: 0.85;
+}
+.chat-cabecera button:hover { opacity: 1; background: rgba(238, 241, 234, 0.12); }
+
+.chat-mensajes { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.chat-msj { max-width: 88%; padding: 9px 12px; border-radius: 12px; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
+.chat-msj.bot { align-self: flex-start; background: #fff; border: 1px solid var(--linea); border-bottom-left-radius: 4px; }
+.chat-msj.usuario { align-self: flex-end; background: var(--vega); color: #fff; border-bottom-right-radius: 4px; font-family: var(--sans); font-size: 15px; }
+.chat-msj p + p { margin-top: 0.55em; }
+.chat-msj ul { margin: 0.4em 0 0.4em 1.2em; }
+.chat-fuentes {
+  margin-top: 0.7em; padding-top: 0.6em; border-top: 1px solid var(--linea);
+  font-family: var(--sans); font-size: 12.5px; color: var(--tinta-suave); line-height: 1.45;
+}
+.chat-fuentes p + p { margin-top: 0.35em; }
+.chat-meta {
+  margin-top: 0.55em; font-family: var(--sans); font-size: 11.5px;
+  color: var(--tinta-suave); opacity: 0.85;
+}
+.chat-msj.error { background: #fbeeea; border-color: #e6c2b8; color: #7a3424; font-family: var(--sans); font-size: 14px; }
+.chat-escribiendo::after { content: "▍"; animation: chat-parpadeo 1s steps(2) infinite; color: var(--tinta-suave); }
+@keyframes chat-parpadeo { 50% { opacity: 0; } }
+
+.chat-sugerencias { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+.chat-sugerencias[hidden] { display: none; }
+.chat-sugerencias button {
+  border: 1px solid var(--linea); background: transparent; color: var(--tinta);
+  border-radius: 999px; padding: 4px 11px; font-family: var(--sans); font-size: 13px;
+}
+.chat-sugerencias button:hover { background: var(--liquen-2); }
+
+.chat-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--linea); background: var(--liquen-2); }
+.chat-form textarea {
+  flex: 1; resize: none; font-family: var(--sans); font-size: 15px; line-height: 1.4; color: var(--tinta);
+  border: 1px solid var(--linea); border-radius: 8px; padding: 8px 10px; background: #fff; max-height: 120px;
+}
+.chat-form button {
+  border: none; border-radius: 8px; padding: 0 16px; background: var(--vega); color: #fff;
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
+}
+.chat-form button:disabled { opacity: 0.5; cursor: default; }
+.chat-form button.chat-detener { background: var(--tinta-suave); }
+.chat-nota { padding: 0 12px 8px; background: var(--liquen-2); font-family: var(--sans); font-size: 11.5px; color: var(--tinta-suave); }
+
+@media (max-width: 520px) {
+  .chat-boton { right: 12px; bottom: 12px; }
+  .chat-boton .chat-etiqueta { display: none; }
+  .chat-boton { padding: 8px; }
+  .chat-panel { right: 0; bottom: 0; width: 100vw; height: 100dvh; border-radius: 0; border: none; }
+}
+@media (prefers-reduced-motion: reduce) { .chat-escribiendo::after, .chat-avatar, .chat-avatar img { animation: none !important; } }
