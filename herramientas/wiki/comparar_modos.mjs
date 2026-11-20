@@ -1,15 +1,19 @@
-// Compara MODO="completo" vs MODO="rag" sobre un banco de 15 preguntas de prueba.
+// Compara modos del bot sobre un banco de 15 preguntas de prueba: "completo" (wiki entera), "rag"
+// (solo BM25) e "hibrido-<peso>" (modo rag con búsqueda híbrida BM25 + embeddings y ese peso de BM25).
 // Guarda respuestas, citas, verificación de DOI, tokens aproximados y tiempos en un .md.
+// Los vectores de las preguntas se piden a Workers AI una sola vez (wiki/_bot/vectores_preguntas.json).
 //
 // Uso (desde la raíz del repo):
 //   node herramientas/wiki/comparar_modos.mjs
+//   node herramientas/wiki/comparar_modos.mjs --modos completo,rag,hibrido-0.3,hibrido-0.5,hibrido-0.7
 //   node herramientas/wiki/comparar_modos.mjs --url http://localhost:8787/chat
 //   node herramientas/wiki/comparar_modos.mjs --salida herramientas/wiki/comparacion_modos.md
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import worker from "../../bot/worker.js";
+import { aiPorRest } from "./embeddings.mjs";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.resolve(aqui, "../..");
@@ -35,13 +39,15 @@ const argVal = flag => {
 const URL_EXTERNA = argVal("--url");
 const SALIDA = argVal("--salida") || path.join(aqui, "comparacion_modos.md");
 const SOLO = argVal("--solo") ? Number(argVal("--solo")) : null;
+const MODOS = (argVal("--modos") || "completo,rag,hibrido-0.3").split(",").map(s => s.trim()).filter(Boolean);
 
 const env = {
   MODO: "completo",
   MODELO: "deepseek-flash",
   ORIGENES: "",
   ...leerDevVars(),
-  LIMITE_HORA: "0", // sin límite por IP para correr las 30 consultas del benchmark
+  LIMITE_HORA: "0", // sin límite por IP para correr todas las consultas del benchmark
+  AI: aiPorRest({ cache: true }),
 };
 for (const k of ["PROVEEDOR", "GLM_API_KEY", "DEEPSEEK_API_KEY", "GEMINI_API_KEY",
   "MODELO", "MODELO_GEMINI", "MODELO_GLM", "GLM_API_URL", "RESPALDO", "API_URL",
@@ -153,19 +159,34 @@ function analizarCitas(texto) {
   };
 }
 
+// "rag" = solo BM25; "hibrido-0.3" = búsqueda híbrida con peso 0,3 para BM25; "completo" = wiki entera.
+function parametrosModo(modo) {
+  const p = new URLSearchParams();
+  const m = /^hibrido(?:-([\d.]+))?$/.exec(modo);
+  if (m) {
+    p.set("modo", "rag");
+    if (m[1]) p.set("peso", m[1]);
+  } else {
+    p.set("modo", modo);
+    if (modo === "rag") p.set("busqueda", "bm25");
+  }
+  return p;
+}
+
 async function consultar(mensajes, modo) {
   const t0 = performance.now();
   let r;
+  const params = parametrosModo(modo);
   if (URL_EXTERNA) {
     const u = new URL(URL_EXTERNA);
-    u.searchParams.set("modo", modo);
+    for (const [k, v] of params) u.searchParams.set(k, v);
     r = await fetch(u, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mensajes }),
     });
   } else {
-    const req = new Request(`http://localhost:8787/chat?modo=${modo}`, {
+    const req = new Request(`http://localhost:8787/chat?${params}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -179,12 +200,12 @@ async function consultar(mensajes, modo) {
   const texto = await r.text();
   const ms = Math.round(performance.now() - t0);
   const prov = r.headers.get("X-Proveedor") || (r.ok ? "?" : `HTTP ${r.status}`);
-  const modoReal = r.headers.get("X-Modo") || modo;
   const tokensIn = Number(r.headers.get("X-Tokens-Entrada") || 0);
   return {
     ok: r.ok,
     status: r.status,
-    modo: modoReal,
+    modo,
+    busqueda: r.headers.get("X-Busqueda") || "",
     proveedor: prov,
     tokensIn,
     ms,
@@ -194,6 +215,7 @@ async function consultar(mensajes, modo) {
 }
 
 const dormir = ms => new Promise(res => setTimeout(res, ms));
+const PROV_CORTO = { "GLM (Z.AI)": "GLM", "DeepSeek": "DS", "Gemini": "Gem", "sin-contexto": "fija" };
 
 async function main() {
   const lista = SOLO ? PREGUNTAS.slice(0, SOLO) : PREGUNTAS;
@@ -202,86 +224,87 @@ async function main() {
   for (const p of lista) {
     const ultima = p.mensajes[p.mensajes.length - 1].content;
     console.log(`\n=== [${p.id}/${lista.length}] ${p.categoria}: ${ultima} ===`);
-    const comp = await consultar(p.mensajes, "completo");
-    await dormir(400);
-    const rag = await consultar(p.mensajes, "rag");
-    await dormir(400);
-    resultados.push({ pregunta: p, completo: comp, rag });
+    const porModo = {};
+    for (const modo of MODOS) {
+      porModo[modo] = await consultar(p.mensajes, modo);
+      const c = porModo[modo];
+      console.log(`  ${modo.padEnd(12)} ${c.proveedor}${c.busqueda ? ` (${c.busqueda})` : ""}: ${c.citas.nFuentes} fuentes, ${(c.ms / 1000).toFixed(1)} s`);
+      await dormir(400);
+    }
+    resultados.push({ pregunta: p, porModo });
   }
 
-  // Construir reporte Markdown
+  // Reporte Markdown
   const ahora = new Date().toISOString().slice(0, 16).replace("T", " ");
+  const n = resultados.length || 1;
+  const cab = MODOS.map(m => `\`${m}\``).join(" / ");
   const md = [
-    `# Comparación de modos: \`completo\` vs \`rag\``,
+    `# Comparación de modos: ${MODOS.map(m => `\`${m}\``).join(", ")}`,
     "",
     `- Fecha: ${ahora} UTC`,
     `- Preguntas evaluadas: ${resultados.length}`,
     `- Proveedor configurado: \`${env.PROVEEDOR || "auto"}\` (respaldo: \`${env.RESPALDO || "ninguno"}\`)`,
+    "- `rag` = modo rag solo con BM25; `hibrido-X` = modo rag con búsqueda híbrida (X = peso de BM25, el resto embeddings bge-m3).",
+    "- Proveedor «fija»: el bot no encontró fragmentos relevantes y dio la respuesta fija sin llamar al modelo.",
     "",
-    "## Tabla resumen",
+    "## Fuentes citadas por pregunta",
     "",
-    "| # | Categoría | Prov. (comp / rag) | Tokens in (comp / rag) | Tiempo s (comp / rag) | Fuentes (comp / rag) | DOI en Fuentes (comp / rag) |",
-    "|---:|---|---|---:|---:|---|---|",
+    `| # | Categoría | ${MODOS.map(m => `\`${m}\``).join(" | ")} |`,
+    `|---:|---|${MODOS.map(() => "---:").join("|")}|`,
   ];
-
-  let sumTokComp = 0, sumTokRag = 0, sumMsComp = 0, sumMsRag = 0;
-  let sumFuentesComp = 0, sumDoiComp = 0, sumFuentesRag = 0, sumDoiRag = 0;
-
-  for (const { pregunta: p, completo: c, rag: r } of resultados) {
-    sumTokComp += c.tokensIn; sumTokRag += r.tokensIn;
-    sumMsComp += c.ms; sumMsRag += r.ms;
-    sumFuentesComp += c.citas.nFuentes; sumDoiComp += c.citas.conDoi;
-    sumFuentesRag += r.citas.nFuentes; sumDoiRag += r.citas.conDoi;
-
-    md.push(
-      `| ${p.id} | ${p.categoria} | ${c.proveedor} / ${r.proveedor} | ` +
-      `${c.tokensIn.toLocaleString("es-AR")} / ${r.tokensIn.toLocaleString("es-AR")} | ` +
-      `${(c.ms / 1000).toFixed(1)} / ${(r.ms / 1000).toFixed(1)} | ` +
-      `${c.citas.nFuentes} / ${r.citas.nFuentes} | ` +
-      `${c.citas.doiOk} / ${r.citas.doiOk} |`
-    );
+  const tot = Object.fromEntries(MODOS.map(m => [m, { fuentes: 0, doi: 0, tok: 0, ms: 0 }]));
+  for (const { pregunta: p, porModo } of resultados) {
+    md.push(`| ${p.id} | ${p.categoria} | ${MODOS.map(m => porModo[m].citas.nFuentes).join(" | ")} |`);
+    for (const m of MODOS) {
+      const c = porModo[m];
+      tot[m].fuentes += c.citas.nFuentes; tot[m].doi += c.citas.conDoi; tot[m].tok += c.tokensIn; tot[m].ms += c.ms;
+    }
   }
+  md.push(`| | **Total** | ${MODOS.map(m => `**${tot[m].fuentes}**`).join(" | ")} |`);
 
-  const n = resultados.length || 1;
-  const ahorroTok = sumTokComp ? ((1 - sumTokRag / sumTokComp) * 100).toFixed(1) : "0";
   md.push(
     "",
-    "## Promedios y totales",
+    "## Detalle técnico",
     "",
-    `- **Tokens de entrada promedio:** completo = ${Math.round(sumTokComp / n).toLocaleString("es-AR")} | rag = ${Math.round(sumTokRag / n).toLocaleString("es-AR")} (**${ahorroTok} % menos** en RAG)`,
-    `- **Tiempo promedio:** completo = ${(sumMsComp / n / 1000).toFixed(2)} s | rag = ${(sumMsRag / n / 1000).toFixed(2)} s`,
-    `- **DOIs en bloque Fuentes:** completo = ${sumDoiComp}/${sumFuentesComp} | rag = ${sumDoiRag}/${sumFuentesRag}`,
-    "",
-    "## Detalle por pregunta",
-    ""
+    `| # | Categoría | Proveedor (${cab}) | Tokens in (${cab}) | Tiempo s (${cab}) | DOI en Fuentes (${cab}) |`,
+    "|---:|---|---|---|---|---|",
   );
+  for (const { pregunta: p, porModo } of resultados) {
+    const col = f => MODOS.map(m => f(porModo[m])).join(" / ");
+    md.push(`| ${p.id} | ${p.categoria} | ${col(c => PROV_CORTO[c.proveedor] || c.proveedor)} | ` +
+      `${col(c => c.tokensIn.toLocaleString("es-AR"))} | ${col(c => (c.ms / 1000).toFixed(1))} | ${col(c => c.citas.doiOk)} |`);
+  }
 
-  for (const { pregunta: p, completo: c, rag: r } of resultados) {
+  md.push("", "## Promedios y totales", "");
+  for (const m of MODOS) {
+    md.push(`- **\`${m}\`:** ${tot[m].fuentes} fuentes citadas (${(tot[m].fuentes / n).toFixed(1)} por pregunta), ` +
+      `DOI ${tot[m].doi}/${tot[m].fuentes}, ~${Math.round(tot[m].tok / n).toLocaleString("es-AR")} tokens de entrada, ` +
+      `${(tot[m].ms / n / 1000).toFixed(2)} s promedio`);
+  }
+  md.push("", "## Detalle por pregunta", "");
+
+  for (const { pregunta: p, porModo } of resultados) {
     const ultima = p.mensajes[p.mensajes.length - 1].content;
     md.push(`### ${p.id}. ${p.categoria}`);
     md.push(`**Pregunta:** ${ultima}`);
-    if (p.mensajes.length > 1) {
-      md.push(`*(Con historial previo: "${p.mensajes[0].content}")*`);
+    if (p.mensajes.length > 1) md.push(`*(Con historial previo: "${p.mensajes[0].content}")*`);
+    md.push("");
+    for (const m of MODOS) {
+      const c = porModo[m];
+      md.push(`#### Modo \`${m}\` (${c.proveedor}${c.busqueda ? `, búsqueda ${c.busqueda}` : ""}, ~${c.tokensIn} tok, ${(c.ms / 1000).toFixed(1)} s, DOI: ${c.citas.doiOk})`);
+      md.push("", c.texto, "");
     }
-    md.push("");
-    md.push(`#### Modo \`completo\` (${c.proveedor}, ~${c.tokensIn} tok, ${(c.ms / 1000).toFixed(1)} s, DOI: ${c.citas.doiOk})`);
-    md.push("");
-    md.push(c.texto);
-    md.push("");
-    md.push(`#### Modo \`rag\` (${r.proveedor}, ~${r.tokensIn} tok, ${(r.ms / 1000).toFixed(1)} s, DOI: ${r.citas.doiOk})`);
-    md.push("");
-    md.push(r.texto);
-    md.push("");
-    md.push("---");
-    md.push("");
+    md.push("---", "");
   }
 
   fs.writeFileSync(SALIDA, md.join("\n"), "utf8");
-  console.log("\n" + md.slice(6, 6 + resultados.length + 10).join("\n"));
-  console.log(`\nReporte guardado en: ${SALIDA}`);
+  console.log("\n" + md.slice(md.indexOf("## Fuentes citadas por pregunta"), md.indexOf("## Detalle técnico")).join("\n"));
+  console.log(`Reporte guardado en: ${SALIDA}`);
 }
 
-main().catch(e => {
-  console.error(e);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(e => {
+    console.error(e);
+    process.exit(1);
+  });
+}

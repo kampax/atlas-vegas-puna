@@ -683,7 +683,25 @@ def exportar_indice_rag(fichas):
     escribir(os.path.join(RAIZ, "bot", "indice_rag.js"),
              "// Generado por herramientas/wiki/construir.py para búsqueda BM25 (modo RAG). No editar.\n"
              f"export default {json.dumps(indice, ensure_ascii=False, separators=(',', ':'))};\n")
+    agregar_vectores()
     return n
+
+
+def agregar_vectores():
+    """Agrega los embeddings (bge-m3, con caché en wiki/_bot/vectores.json) a bot/indice_rag.js.
+
+    Sin Node, sin red o sin credenciales de Cloudflare el índice queda como está y el bot usa solo BM25.
+    """
+    import shutil as _sh, subprocess
+    node = _sh.which("node")
+    if not node:
+        print("Aviso: no se encontró Node.js; indice_rag.js queda sin vectores (solo BM25).")
+        return
+    script = os.path.join(RAIZ, "herramientas", "wiki", "embeddings.mjs")
+    try:
+        subprocess.run([node, script], cwd=RAIZ, check=False, timeout=900)
+    except Exception as e:  # nunca rompe el build
+        print(f"Aviso: no se agregaron vectores ({e}); el modo rag usará solo BM25.")
 
 
 if __name__ == "__main__":
