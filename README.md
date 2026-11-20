@@ -144,22 +144,6 @@ Después abre <http://localhost:8000>. Abrir `index.html` con doble clic no alca
 3. En **Build and deployment**, elige **Deploy from a branch**, la rama `main` y la carpeta `/ (root)`.
 4. En uno o dos minutos el sitio queda en `https://<usuario>.github.io/atlas-vegas-puna/`.
 
-## Métricas de visitas
-
-El sitio cuenta visitas con [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/), gratuito y sin cookies ni rastreo de visitantes individuales (no requiere aviso de cookies).
-
-**Qué se mide**
-
-- Visitas y páginas vistas, procedencia (referrer), país, navegador, sistema operativo, tipo de dispositivo y métricas de rendimiento (Core Web Vitals).
-
-**Dónde se ven**
-
-En el panel de Cloudflare: **Analytics & Logs → Web Analytics** (`kampax.github.io`), o entrando directamente a <https://dash.cloudflare.com/?to=/:account/web-analytics>.
-
-**Cómo cambiar el token**
-
-En `index.html` (dentro de `<head>`), actualizar el campo `token` del atributo `data-cf-beacon` del script de Cloudflare Web Analytics y subir el cambio.
-
 ## Créditos
 
 - **Fotografías:** [Carlos Javier Navarro](https://www.researchgate.net/profile/Carlos-Javier-Navarro).
