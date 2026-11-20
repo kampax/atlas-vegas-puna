@@ -229,3 +229,78 @@ export function armarContextoRag(fragmentos) {
     ].filter(Boolean).join("\n");
   }).join("\n\n---\n\n");
 }
+
+// Catálogo canónico de citas (extraído del índice RAG) para corregir cualquier cita mezclada o
+// alterada por el modelo al escribir el bloque "Fuentes:".
+const RE_DOI = /10\.\d{4,9}\/[^\s,;<>)\]]+/i;
+const RE_URL = /https?:\/\/[^\s<>)\]]+/i;
+const CITAS_POR_DOI = new Map();
+const CITAS_POR_URL = new Map();
+const CITAS_CATALOGO = [];
+
+function parteTituloCita(cita) {
+  const m = cita.match(/\(\d{4}[a-z]?\)\.\s*(.+)/) || cita.match(/\(s\.\s*f\.\)\.\s*(.+)/i);
+  return m ? m[1] : cita;
+}
+
+{
+  const vistas = new Set();
+  for (const f of INDICE.fragmentos || []) {
+    for (const raw of String(f.cita || "").split("\n")) {
+      const cita = raw.trim();
+      if (!cita || vistas.has(cita)) continue;
+      vistas.add(cita);
+      const mDoi = cita.match(RE_DOI);
+      if (mDoi) CITAS_POR_DOI.set(mDoi[0].replace(/[.,;]+$/, "").toLowerCase(), cita);
+      const mUrl = cita.match(RE_URL);
+      if (mUrl) CITAS_POR_URL.set(mUrl[0].replace(/[.,;]+$/, "").toLowerCase(), cita);
+      const toks = new Set(tokenizarEs(parteTituloCita(cita)));
+      if (toks.size >= 4) CITAS_CATALOGO.push({ cita, toks });
+    }
+  }
+}
+
+function resolverCitaCanonica(linea) {
+  const mDoi = linea.match(RE_DOI);
+  if (mDoi) {
+    const hit = CITAS_POR_DOI.get(mDoi[0].replace(/[.,;]+$/, "").toLowerCase());
+    if (hit) return hit;
+  }
+  const mUrl = linea.match(RE_URL);
+  if (mUrl) {
+    const hit = CITAS_POR_URL.get(mUrl[0].replace(/[.,;]+$/, "").toLowerCase());
+    if (hit) return hit;
+  }
+  const toks = new Set(tokenizarEs(parteTituloCita(linea)));
+  if (toks.size < 4) return linea;
+  let mejor = null, mejorScore = 0;
+  for (const entry of CITAS_CATALOGO) {
+    let inter = 0;
+    for (const t of toks) if (entry.toks.has(t)) inter++;
+    const score = inter / Math.max(toks.size, entry.toks.size);
+    if (inter >= 4 && score > mejorScore) {
+      mejorScore = score;
+      mejor = entry.cita;
+    }
+  }
+  return mejorScore >= 0.65 ? mejor : linea;
+}
+
+/**
+ * Reemplaza cada línea del bloque "Fuentes:" por su cita canónica exacta de la wiki
+ * (evita que el modelo mezcle autores, años o títulos entre estudios) y elimina duplicados.
+ */
+export function canonicalizarFuentes(bloqueFuentes) {
+  const salida = [];
+  const vistas = new Set();
+  for (const raw of String(bloqueFuentes || "").split("\n")) {
+    const limpia = raw.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim();
+    if (!limpia) continue;
+    const canon = resolverCitaCanonica(limpia);
+    if (!vistas.has(canon)) {
+      vistas.add(canon);
+      salida.push(canon);
+    }
+  }
+  return salida.join("\n");
+}

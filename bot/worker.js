@@ -22,7 +22,7 @@
 
 import CONOCIMIENTO from "./conocimiento.js";
 import { PERSONAJE, REGLA_RAG, RESPUESTA_SIN_DATOS, BLOQUE_ATLAS, PREGUNTA_SOBRE_ATLAS } from "./personaje.js";
-import { buscarFragmentos, armarContextoRag, RAG_K_DEFECTO, RAG_MAX_TOKENS_DEFECTO } from "./rag.js";
+import { buscarFragmentos, armarContextoRag, canonicalizarFuentes, RAG_K_DEFECTO, RAG_MAX_TOKENS_DEFECTO } from "./rag.js";
 
 // Los tres servicios hablan el formato de chat de OpenAI (Gemini mediante su capa de compatibilidad),
 // así que solo cambian la dirección, la clave, el modelo y cómo se apaga el razonamiento.
@@ -179,33 +179,72 @@ function limpiar(mensajes) {
   return ult.map(m => ({ role: m.role, content: m.content.slice(0, m.role === "user" ? MAX_CARACTERES : 6000) }));
 }
 
-function procesarLinea(l, ctrl, enc, estadoUso) {
-  if (!l.startsWith("data:")) return;
+const RE_FUENTES_HEADER = /\n\s*(?:#{1,6}\s*)?\*{0,2}Fuentes:?\*{0,2}:?\s*(?:\n|$)/i;
+
+function extraerDelta(l, estadoUso) {
+  if (!l.startsWith("data:")) return "";
   const dato = l.slice(5).trim();
-  if (!dato || dato === "[DONE]") return;
+  if (!dato || dato === "[DONE]") return "";
   try {
     const obj = JSON.parse(dato);
     if (obj?.usage?.prompt_tokens && estadoUso) estadoUso.promptTokens = obj.usage.prompt_tokens;
-    const t = obj?.choices?.[0]?.delta?.content;
-    if (t) ctrl.enqueue(enc.encode(t));
+    return obj?.choices?.[0]?.delta?.content || "";
   } catch { /* línea incompleta o de control: se ignora */ }
+  return "";
 }
 
-// Convierte el stream SSE (formato OpenAI) en texto plano (solo la respuesta, sin razonamiento).
+// Convierte el stream SSE (formato OpenAI) en texto plano (solo la respuesta, sin razonamiento)
+// y reemplaza las citas del bloque final "Fuentes:" por sus citas canónicas de la wiki.
 function soloTexto(cuerpo, alTerminar) {
   const dec = new TextDecoder(), enc = new TextEncoder();
   const estadoUso = { promptTokens: null };
   let resto = "";
+  let cola = "";
+  let enFuentes = false;
+  let cabeceraFuentes = "";
+  let textoFuentes = "";
+
+  function empujarTexto(t, ctrl) {
+    if (!t) return;
+    if (enFuentes) {
+      textoFuentes += t;
+      return;
+    }
+    cola += t;
+    const m = cola.match(RE_FUENTES_HEADER);
+    if (m) {
+      const antes = cola.slice(0, m.index);
+      if (antes) ctrl.enqueue(enc.encode(antes));
+      cabeceraFuentes = m[0];
+      textoFuentes = cola.slice(m.index + m[0].length);
+      cola = "";
+      enFuentes = true;
+      return;
+    }
+    // Mantiene una cola corta para no partir "\nFuentes:\n" entre dos trozos del stream.
+    const MARGEN = 32;
+    if (cola.length > MARGEN) {
+      ctrl.enqueue(enc.encode(cola.slice(0, -MARGEN)));
+      cola = cola.slice(-MARGEN);
+    }
+  }
+
   return cuerpo.pipeThrough(new TransformStream({
     transform(trozo, ctrl) {
       resto += dec.decode(trozo, { stream: true });
       const lineas = resto.split("\n");
       resto = lineas.pop();
-      for (const l of lineas) procesarLinea(l, ctrl, enc, estadoUso);
+      for (const l of lineas) empujarTexto(extraerDelta(l, estadoUso), ctrl);
     },
     flush(ctrl) {
       resto += dec.decode();
-      if (resto.trim()) procesarLinea(resto, ctrl, enc, estadoUso);
+      if (resto.trim()) empujarTexto(extraerDelta(resto, estadoUso), ctrl);
+      if (enFuentes) {
+        const canon = canonicalizarFuentes(textoFuentes);
+        ctrl.enqueue(enc.encode(cabeceraFuentes + (canon || textoFuentes)));
+      } else if (cola) {
+        ctrl.enqueue(enc.encode(cola));
+      }
       if (alTerminar) alTerminar(estadoUso.promptTokens);
     },
   }));
