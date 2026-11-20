@@ -146,31 +146,19 @@ Después abre <http://localhost:8000>. Abrir `index.html` con doble clic no alca
 
 ## Métricas de visitas
 
-El sitio cuenta visitas con [GoatCounter](https://www.goatcounter.com/), gratis para uso no comercial. No usa cookies ni guarda datos personales, así que no hace falta un aviso de cookies.
+El sitio cuenta visitas con [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/), gratuito y sin cookies ni rastreo de visitantes individuales (no requiere aviso de cookies).
 
 **Qué se mide**
 
-- Visitas a la página: cuántas, desde qué sitio llegan (referer), país, navegador, sistema y tamaño de pantalla.
-- Dos eventos, que aparecen en el panel como rutas propias:
-  - `abrir-visor`: alguien abre el visor de fotos (se cuenta al abrirlo, no al pasar de una foto a otra).
-  - `abrir-chat`: alguien abre el chat de Doña Vicuña (solo si el chat está activo).
+- Visitas y páginas vistas, procedencia (referrer), país, navegador, sistema operativo, tipo de dispositivo y métricas de rendimiento (Core Web Vitals).
 
 **Dónde se ven**
 
-En `https://<código>.goatcounter.com`, con la cuenta de GoatCounter. Desde **Settings** se puede hacer público el panel.
+En el panel de Cloudflare: **Analytics & Logs → Web Analytics** (`kampax.github.io`), o entrando directamente a <https://dash.cloudflare.com/?to=/:account/web-analytics>.
 
-**Cómo activarlas o cambiar el código**
+**Cómo cambiar el token**
 
-1. Crea una cuenta en <https://www.goatcounter.com/signup> y elige un código para el sitio (por ejemplo `atlas-vegas-puna`).
-2. En `index.html`, dentro del `<script>` de métricas del `<head>`, reemplaza `CODIGO_GOATCOUNTER` por ese código:
-
-   ```js
-   var CODIGO = 'atlas-vegas-puna';
-   ```
-
-3. Sube el cambio. Mientras quede `CODIGO_GOATCOUNTER`, el script no se carga.
-
-En `localhost`, `127.0.0.1` y al abrir el archivo directamente, las métricas no se cargan, así que las pruebas locales no se cuentan. Para agregar otro evento, llama a `window.metrica('nombre-del-evento', 'Título legible')` desde el código del sitio.
+En `index.html` (dentro de `<head>`), actualizar el campo `token` del atributo `data-cf-beacon` del script de Cloudflare Web Analytics y subir el cambio.
 
 ## Créditos
 
