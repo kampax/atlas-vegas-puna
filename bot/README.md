@@ -14,7 +14,7 @@ index.html + assets/chat.js  →  bot/worker.js (Cloudflare Worker)  →  API de
 - `personaje.js`: nombre, voz y reglas del personaje (editable). También tiene `SOBRE_EL_ATLAS`, los datos fijos del atlas (autor de las fotos, contacto, instituciones, financiamiento y créditos), que van al modelo en los dos modos. Si cambian los créditos del `README.md` o de `index.html`, actualizalos ahí también.
 - `worker.js`: el intermediario. Valida la conversación, limita orígenes (CORS) y largo, elige
   el modo (`completo` o `rag`) y devuelve la respuesta en streaming.
-- `conocimiento.js`: la wiki empaquetada (~190 mil tokens, para `MODO = "completo"`). **Se genera**
+- `conocimiento.js`: la wiki empaquetada (~410 mil tokens, para `MODO = "completo"`). **Se genera**
   con `python herramientas/wiki/construir.py` y no se sube a git.
 - `indice_rag.js`: índice BM25, fragmentos con citas completas y el vector (embedding bge-m3) de cada
   fragmento, en int8 + escala y base64 (para `MODO = "rag"`). También **se genera** con
@@ -74,7 +74,7 @@ otra dirección (`GLM_API_URL`) y está pensado para herramientas de programaci�
 La clave de Gemini se crea gratis en <https://aistudio.google.com/apikey>. Tener en cuenta:
 
 - **Plan gratuito de Gemini:** sirve para probar, pero cada pregunta manda la wiki completa
-  (~190 mil tokens) y el plan gratuito limita los tokens por minuto, así que admite muy pocas
+  (~410 mil tokens) y el plan gratuito limita los tokens por minuto, así que admite muy pocas
   preguntas por minuto y por día. Además, en el plan gratuito Google puede usar las consultas
   para mejorar sus productos. Para uso público conviene activar la facturación en Google AI Studio.
 - Google retira modelos con el tiempo: si el chat deja de responder, revisar el nombre vigente en <https://ai.google.dev/gemini-api/docs/models> y actualizar `MODELO_GEMINI`.
@@ -107,9 +107,9 @@ desplegar (`npx wrangler deploy`). La respuesta incluye siempre la cabecera `X-M
     latencia, permite usar modelos con menos contexto (como `glm-4.7-flash` gratuito) y ahorra cuota en planes gratuitos.
   - *Riesgos / límites:* con el tope de 6000 tokens entran ~3–6 fragmentos (las síntesis rondan
     2200 tokens), así que en preguntas muy comparativas cita menos estudios que `completo`.
-- **`MODO = "completo"`:** envía el personaje + la wiki entera (~190 mil tokens)
+- **`MODO = "completo"`:** envía el personaje + la wiki entera (~410 mil tokens)
   en cada pregunta.
-  - *Ventajas:* el modelo ve los 108 estudios y todas las síntesis a la vez (máxima cobertura para
+  - *Ventajas:* el modelo ve los 219 documentos y todas las síntesis a la vez (máxima cobertura para
     preguntas amplias o comparativas) y los proveedores cachean ese prefijo fijo.
   - *Riesgos / límites:* sin caché es más caro y lento; excede el límite de prompt de `glm-4.7-flash`
     y satura rápido planes gratuitos con tope de tokens por minuto (como Gemini gratis).
@@ -144,6 +144,37 @@ Resultados del 20/11/2026 (peso 0,3 elegido; detalle en `herramientas/wiki/compa
 | Estudio correcto recuperado (12 preguntas parafraseadas) | — | 8 | **10** | 10 | 9 |
 | Preguntas fuera de tema con respuesta fija (6) | — | 0 | **6** | 6 | 6 |
 
+Prueba del tope de tokens (21/11/2026, una corrida con GLM; detalle en `wiki/_bot/informe_rag_max_tokens.md`):
+con `RAG_MAX_TOKENS = 10000` no hubo mejora (fuentes citadas: rag 41 → 35, híbrida 70 → 54) y cada
+consulta usa ~45 % más tokens de entrada, así que **el tope queda en 6000**. La variación entre corridas
+del mismo modo (±10–20 fuentes en el total) es del mismo tamaño que esas diferencias: para afinar el
+tope conviene repetir cada configuración 2–3 veces.
+
+## Estado del modo híbrido
+
+*Actualizado el 21/11/2026.*
+
+- **Publicado:** el Worker con la búsqueda híbrida y el binding `AI` está desplegado desde el 20/11/2026
+  (versión `614e0d9c`), y su código es el de `main` (merge del PR #1, commit `a635ee6`).
+- **Hoy responde solo con BM25:** el cupo gratuito diario de Workers AI se agotó el 20/11 por un error
+  al calcular los vectores (un lote se repitió durante ~10 minutos; ya está corregido). A las 00:39 UTC
+  del 21/11 la API todavía devolvía el error 4006 (*daily free allocation of 10,000 neurons*), aunque
+  Cloudflare indica que el cupo se renueva a las 00:00 UTC. Mientras tanto el bot funciona con
+  normalidad, sin la parte semántica, y pasa solo a la búsqueda híbrida cuando el cupo se libera, sin
+  volver a desplegar.
+- **Cómo verificarlo:** la cabecera `X-Busqueda` de cada respuesta dice `hibrida` o `bm25`:
+
+  ```
+  curl -s -D - -o /dev/null -X POST https://atlas-vegas-bot.kampax.workers.dev/chat -H "Content-Type: application/json" -H "Origin: https://kampax.github.io" --data '{"mensajes":[{"role":"user","content":"¿Qué es un bofedal?"}]}'
+  ```
+
+  Si dice `bm25`, `npx wrangler tail` (desde `bot/`) muestra el motivo en la línea
+  `[chat] embeddings no disponibles, sigo con BM25: ...`. Después de un error de cupo, cada instancia
+  del Worker espera 30 min antes de volver a probar Workers AI.
+- **Si el error 4006 sigue más de un día:** revisar el consumo de Workers AI en el panel de Cloudflare.
+  En el plan Workers Paid el uso del bot (una llamada corta por pregunta) costaría muy poco y no
+  dependería del cupo gratuito.
+
 ## Actualizar el conocimiento
 
 Cada vez que cambie la wiki: `python herramientas/wiki/construir.py` (regenera tanto
@@ -160,8 +191,10 @@ el vector de cada fragmento (Workers AI `@cf/baai/bge-m3`, multilingüe):
   `CLOUDFLARE_ACCOUNT_ID`, de `account_id` en `wrangler.toml` o de la primera cuenta del token.
 - Sin Node, sin red o sin credenciales el índice se arma igual: esos fragmentos quedan sin vector y se
   buscan solo por BM25. Para reusar solo el caché: `node herramientas/wiki/embeddings.mjs --sin-red`.
-- Cuidado con el cupo gratuito de Workers AI (10 000 neuronas por día, se renueva a las 00:00 UTC):
-  recalcular todo el índice gasta una parte apreciable; una pregunta del chat, casi nada.
+- Cuidado con el cupo gratuito de Workers AI (10 000 neuronas por día; según Cloudflare se renueva a
+  las 00:00 UTC, pero el 21/11/2026 seguía agotado después de esa hora): recalcular todo el índice
+  gasta una parte apreciable y una pregunta del chat, casi nada. El cupo es el mismo para el Worker y
+  para estos scripts, así que agotarlo en una prueba deja al chat publicado solo con BM25.
 
 ## Costos y cuidados
 
