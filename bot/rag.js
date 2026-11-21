@@ -1,5 +1,6 @@
-// Búsqueda BM25 en JavaScript puro para el modo RAG del bot "Doña Vicuña".
-// Sin dependencias externas: funciona igual en Cloudflare Workers y en servidor-local.mjs.
+// Búsqueda para el modo RAG del bot "Doña Vicuña": BM25 en JavaScript puro y, si el Worker pudo
+// convertir la pregunta en vector (Workers AI, bge-m3), búsqueda híbrida con los embeddings precalculados
+// del índice. Sin dependencias externas: funciona igual en Cloudflare Workers y en servidor-local.mjs.
 //
 // La normalización y raíz simple deben coincidir con herramientas/wiki/construir.py.
 
@@ -104,6 +105,8 @@ for (const grupo of GRUPOS_SINONIMOS_CRUDOS) {
 export const RAG_K_DEFECTO = 8;
 export const RAG_MAX_TOKENS_DEFECTO = 6000;
 export const UMBRAL_SCORE_MINIMO = 1.5;
+// Con búsqueda híbrida: similitud coseno máxima por debajo de la cual la pregunta se considera fuera de tema.
+export const UMBRAL_SIMILITUD_MINIMA = 0.43;
 
 /**
  * Construye el vector de pesos de términos de consulta a partir de la última
@@ -149,16 +152,72 @@ export function construirPesosConsulta(mensajes) {
   return { pesos, directos };
 }
 
+// --- Embeddings (búsqueda híbrida) ---------------------------------------------------------------
+// INDICE.vec: n × dims bytes int8 en base64 y una escala por fragmento (herramientas/wiki/embeddings.mjs).
+// Un fragmento con escala 0 no tiene vector (se calculó sin red) y solo se busca por BM25.
+export const MODELO_VECTORES = "@cf/baai/bge-m3";
+export const PESO_BM25_DEFECTO = 0.3;        // el resto (0,7) es similitud de significado
+export const UMBRAL_SOLO_SEMANTICO = 0.6;    // fragmentos sin palabras en común, solo si son muy parecidos
+export const TIENE_VECTORES = Boolean(INDICE.vec && INDICE.vec.modelo === MODELO_VECTORES && INDICE.vec.b64);
+
+let matrizVectores = null;
+function matriz() {
+  if (!matrizVectores) {
+    // Decodificación nativa si existe (mucho más rápida: importa con 10 ms de CPU del plan gratuito).
+    let bytes;
+    if (typeof Uint8Array.fromBase64 === "function") {
+      bytes = Uint8Array.fromBase64(INDICE.vec.b64);
+    } else {
+      const bin = atob(INDICE.vec.b64);
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    }
+    matrizVectores = new Int8Array(bytes.buffer, bytes.byteOffset, bytes.length);
+  }
+  return matrizVectores;
+}
+
+/** Similitud coseno (los vectores de bge-m3 vienen normalizados) de la pregunta con cada fragmento. */
+export function similitudes(vector) {
+  const m = matriz(), dims = INDICE.vec.dims, out = new Float32Array(INDICE.n);
+  for (let i = 0; i < INDICE.n; i++) {
+    const e = INDICE.vec.escalas[i];
+    if (!e) { out[i] = NaN; continue; }
+    let s = 0;
+    for (let j = 0, o = i * dims; j < dims; j++) s += vector[j] * m[o + j];
+    out[i] = s * e;
+  }
+  return out;
+}
+
 /**
- * Busca los fragmentos más relevantes con BM25 y respeta k y el tope de tokens.
+ * Texto que se convierte en vector: la última pregunta y, si es una repregunta corta
+ * ("¿y en Chile?"), también la anterior para conservar el tema.
+ */
+export function textoConsultaVector(mensajes) {
+  const usuarios = (mensajes || [])
+    .filter(m => m && m.role === "user" && typeof m.content === "string" && m.content.trim())
+    .map(m => m.content.trim());
+  if (!usuarios.length) return "";
+  const ultima = usuarios[usuarios.length - 1];
+  if (usuarios.length > 1 && tokenizarEs(ultima).length < 5) return `${usuarios[usuarios.length - 2]}\n${ultima}`;
+  return ultima;
+}
+
+/**
+ * Busca los fragmentos más relevantes y respeta k y el tope de tokens.
+ * Sin opts.vector: BM25 puro (como siempre). Con opts.vector (embedding bge-m3 de la pregunta):
+ * puntaje = peso × BM25/máx + (1 − peso) × similitud normalizada respecto de la mediana.
  */
 export function buscarFragmentos(mensajes, opts = {}) {
   const k = Number(opts.k) > 0 ? Number(opts.k) : RAG_K_DEFECTO;
   const maxTokens = Number(opts.maxTokens) > 0 ? Number(opts.maxTokens) : RAG_MAX_TOKENS_DEFECTO;
   const umbral = opts.umbral !== undefined ? Number(opts.umbral) : UMBRAL_SCORE_MINIMO;
+  const peso = opts.pesoBm25 !== undefined && opts.pesoBm25 !== null ? Number(opts.pesoBm25) : PESO_BM25_DEFECTO;
+  const vector = TIENE_VECTORES && opts.vector && opts.vector.length === INDICE.vec.dims ? opts.vector : null;
 
   const { pesos, directos } = construirPesosConsulta(mensajes);
-  if (!pesos.size || !INDICE.n) return { fragmentos: [], mejorScore: 0 };
+  if ((!pesos.size && !vector) || !INDICE.n) return { fragmentos: [], mejorScore: 0, busqueda: "bm25" };
 
   const { k1, b, avgdl, idf, postings, dl, fragmentos } = INDICE;
   const scores = new Float64Array(INDICE.n);
@@ -180,17 +239,50 @@ export function buscarFragmentos(mensajes, opts = {}) {
     }
   }
 
+  let maxBm25 = 0;
+  for (let i = 0; i < INDICE.n; i++) {
+    if (directScores[i] > 0 && scores[i] > maxBm25) maxBm25 = scores[i];
+  }
+
+  // Similitud llevada a 0–1 respecto de la mediana: bge-m3 da similitudes muy apretadas.
+  let sem = null, simMax = 0;
+  if (vector) {
+    sem = similitudes(vector);
+    const validas = Float32Array.from(sem.filter(x => !Number.isNaN(x))).sort();
+    if (validas.length) {
+      const mediana = validas[Math.floor(validas.length / 2)];
+      simMax = validas[validas.length - 1];
+      const tope = simMax - mediana || 1;
+      for (let i = 0; i < sem.length; i++) {
+        sem[i] = Number.isNaN(sem[i]) ? 0 : Math.max(0, (sem[i] - mediana) / tope);
+      }
+    } else {
+      sem = null;
+    }
+  }
+
   const candidatos = [];
   for (let i = 0; i < INDICE.n; i++) {
-    if (scores[i] > 0 && directScores[i] > 0) {
-      candidatos.push({ idx: i, score: scores[i], direct: directScores[i] });
+    const lexico = scores[i] > 0 && directScores[i] > 0;
+    if (!sem) {
+      if (lexico) candidatos.push({ idx: i, score: scores[i] });
+      continue;
     }
+    const s = sem[i];
+    if (!lexico && !(s >= UMBRAL_SOLO_SEMANTICO)) continue;
+    const mezcla = peso * (lexico && maxBm25 ? scores[i] / maxBm25 : 0) + (1 - peso) * s;
+    if (mezcla > 0) candidatos.push({ idx: i, score: mezcla });
   }
   candidatos.sort((a, c) => c.score - a.score);
 
-  const mejorScore = candidatos.length ? candidatos[0].score : 0;
-  if (!candidatos.length || mejorScore < umbral) {
-    return { fragmentos: [], mejorScore: Math.round(mejorScore * 100) / 100 };
+  // "Sin fragmentos → respuesta fija": con vector se decide por la similitud absoluta máxima
+  // (la normalizada siempre llega a 1); sin vector, por el mejor puntaje BM25, como antes.
+  const umbralSim = opts.umbralSimilitud !== undefined ? Number(opts.umbralSimilitud) : UMBRAL_SIMILITUD_MINIMA;
+  const sinRelevantes = sem ? simMax < umbralSim : maxBm25 < umbral;
+  const mejorScore = sem ? simMax : maxBm25;
+  const busqueda = sem ? "hibrida" : "bm25";
+  if (!candidatos.length || sinRelevantes) {
+    return { fragmentos: [], mejorScore: Math.round(mejorScore * 1000) / 1000, busqueda };
   }
 
   const elegidos = [];
@@ -203,11 +295,11 @@ export function buscarFragmentos(mensajes, opts = {}) {
     const tok = f.tok || Math.ceil((f.texto.length + f.cita.length + 100) / 4);
     if (elegidos.length > 0 && tokensAcum + tok > maxTokens) continue;
     vistos.add(f.id);
-    elegidos.push({ ...f, score: Math.round(c.score * 100) / 100 });
+    elegidos.push({ ...f, score: Math.round(c.score * 1000) / 1000 });
     tokensAcum += tok;
   }
 
-  return { fragmentos: elegidos, mejorScore: Math.round(mejorScore * 100) / 100 };
+  return { fragmentos: elegidos, mejorScore: Math.round(mejorScore * 1000) / 1000, busqueda };
 }
 
 /**

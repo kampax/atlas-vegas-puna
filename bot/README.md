@@ -16,10 +16,12 @@ index.html + assets/chat.js  →  bot/worker.js (Cloudflare Worker)  →  API de
   el modo (`completo` o `rag`) y devuelve la respuesta en streaming.
 - `conocimiento.js`: la wiki empaquetada (~190 mil tokens, para `MODO = "completo"`). **Se genera**
   con `python herramientas/wiki/construir.py` y no se sube a git.
-- `indice_rag.js`: índice BM25 y fragmentos con citas completas (para `MODO = "rag"`). También
-  **se genera** con `python herramientas/wiki/construir.py` y no se sube a git.
-- `rag.js`: buscador BM25 en JavaScript puro (normalización en español, sinónimos del dominio y
-  soporte para repreguntas), sin dependencias externas.
+- `indice_rag.js`: índice BM25, fragmentos con citas completas y el vector (embedding bge-m3) de cada
+  fragmento, en int8 + escala y base64 (para `MODO = "rag"`). También **se genera** con
+  `python herramientas/wiki/construir.py` y no se sube a git.
+- `rag.js`: buscador en JavaScript puro, sin dependencias externas: BM25 (normalización en español,
+  sinónimos del dominio y soporte para repreguntas) y, si el Worker pudo convertir la pregunta en
+  vector, búsqueda híbrida con los embeddings precalculados.
 - `servidor-local.mjs`: sirve el atlas con el chat en `http://localhost:8787` para probar.
 
 ## Probar en tu computadora
@@ -84,16 +86,27 @@ o `bot/.dev.vars` / variables de entorno (local). Ambos modos funcionan con GLM,
 y respetan `RESPALDO`. Cambiar de modo es cambiar `MODO` y reiniciar (`servidor-local.mjs`) o
 desplegar (`npx wrangler deploy`). La respuesta incluye siempre la cabecera `X-Modo`.
 
-- **`MODO = "rag"` (por defecto):** busca en el propio Worker (BM25 en JavaScript puro, sin servicios externos)
-  los fragmentos más relevantes de la wiki (~300–600 palabras cada uno, con su `REF` y `Cita:`
-  completa con DOI) y envía solo el personaje + esos fragmentos (por defecto `RAG_K = 8` y tope
-  `RAG_MAX_TOKENS = 6000`). Toma la última pregunta y hasta 2 anteriores para entender repreguntas
-  (p. ej. *"¿y en Chile?"*). Si no encuentra fragmentos relevantes, responde directo sin llamar al modelo.
-  - *Ventajas:* reduce la entrada ~30 veces (~4–7 mil tokens frente a ~190 mil), baja costos y
+- **`MODO = "rag"` (por defecto):** busca en el propio Worker los fragmentos más relevantes de la wiki
+  (~300–600 palabras cada uno, con su `REF` y `Cita:` completa con DOI) y envía solo el personaje +
+  esos fragmentos (por defecto `RAG_K = 8` y tope `RAG_MAX_TOKENS = 6000`). Toma la última pregunta y
+  hasta 2 anteriores para entender repreguntas (p. ej. *"¿y en Chile?"*). Si no encuentra fragmentos
+  relevantes, responde directo sin llamar al modelo.
+  - *Búsqueda híbrida:* el Worker convierte la pregunta en vector con Workers AI (`@cf/baai/bge-m3`,
+    binding `[ai]` en `wrangler.toml`; si es una repregunta corta, junto con la anterior) y lo compara
+    con los vectores precalculados de cada fragmento. Puntaje = 0,3 × BM25 normalizado al máximo +
+    0,7 × similitud normalizada respecto de la mediana (`(sim − mediana)/(máx − mediana)`, mínimo 0). Un
+    fragmento sin palabras en común con la pregunta entra si su similitud normalizada es ≥ 0,6. Los
+    sinónimos del dominio siguen sumando en la parte BM25. El peso se cambia con `RAG_PESO_BM25`.
+  - *Fuera de tema:* con vector, si la similitud máxima (sin normalizar) queda bajo 0,43, se da la
+    respuesta fija sin llamar al modelo (las preguntas de prueba fuera de tema dan ≤ 0,42 y las del
+    tema ≥ 0,47). Sin vector se usa el umbral BM25 de siempre, que no filtra bien esas preguntas.
+  - *Respaldo:* si no hay binding `AI`, se agota el cupo diario gratuito de Workers AI, falla o tarda
+    más de 5 s, la búsqueda sigue solo con BM25, sin error para quien pregunta (y no se reintenta por
+    30 min si fue el cupo, 1 min si fue otra falla). La cabecera `X-Busqueda` dice `hibrida` o `bm25`.
+  - *Ventajas:* reduce la entrada ~50 veces (~7 mil tokens frente a ~410 mil), baja costos y
     latencia, permite usar modelos con menos contexto (como `glm-4.7-flash` gratuito) y ahorra cuota en planes gratuitos.
-  - *Riesgos / límites:* la búsqueda es léxica (BM25 + normalización en español + sinónimos del
-    dominio); si una pregunta se formula con términos muy distintos a los de la wiki o exige cruzar
-    muchos estudios a la vez, puede dejar afuera algún trabajo relevante.
+  - *Riesgos / límites:* con el tope de 6000 tokens entran ~3–6 fragmentos (las síntesis rondan
+    2200 tokens), así que en preguntas muy comparativas cita menos estudios que `completo`.
 - **`MODO = "completo"`:** envía el personaje + la wiki entera (~190 mil tokens)
   en cada pregunta.
   - *Ventajas:* el modelo ve los 108 estudios y todas las síntesis a la vez (máxima cobertura para
@@ -102,17 +115,53 @@ desplegar (`npx wrangler deploy`). La respuesta incluye siempre la cabecera `X-M
     y satura rápido planes gratuitos con tope de tokens por minuto (como Gemini gratis).
 
 **Pruebas en `localhost`:** solo en `localhost`/`127.0.0.1` se puede forzar el modo por pregunta sin
-reiniciar usando `?modo=rag` o `?modo=completo` en `/chat` (o la cabecera `X-Modo-Prueba`). En
-producción esa opción está deshabilitada. Para comparar ambos modos sobre un banco de 15 preguntas:
+reiniciar usando `?modo=rag` o `?modo=completo` en `/chat` (o la cabecera `X-Modo-Prueba`), y en modo
+rag `?busqueda=bm25` (sin embeddings) o `?peso=0.5` (peso de BM25). En producción esas opciones están
+deshabilitadas. `servidor-local.mjs` imita el binding `AI` llamando a la API REST de Workers AI con
+las credenciales de `npx wrangler login` (sin credenciales, o con `SIN_AI=1`, usa solo BM25).
+
+Para comparar modos sobre un banco de 15 preguntas (`rag` = solo BM25, `hibrido-X` = híbrida con peso X):
 
 ```
-node herramientas/wiki/comparar_modos.mjs
+node herramientas/wiki/comparar_modos.mjs --modos completo,rag,hibrido-0.3,hibrido-0.5,hibrido-0.7
 ```
+
+Para medir solo la búsqueda, sin llamar a ningún modelo de lenguaje (estudio esperado recuperado en
+preguntas parafraseadas, citas enviadas al modelo y similitud de preguntas fuera de tema):
+
+```
+node herramientas/wiki/probar_busqueda.mjs
+```
+
+Los vectores de las preguntas de ambos scripts se guardan en `wiki/_bot/vectores_preguntas.json`
+para no gastar cupo de Workers AI al repetirlos.
+
+Resultados del 20/11/2026 (peso 0,3 elegido; detalle en `herramientas/wiki/comparacion_modos.md`):
+
+| | `completo` | `rag` (BM25) | híbrida 0,3 | híbrida 0,5 | híbrida 0,7 |
+|---|---:|---:|---:|---:|---:|
+| Fuentes citadas (15 preguntas, una corrida) | 73 | 51 | **62** | 49 | 36 |
+| Estudio correcto recuperado (12 preguntas parafraseadas) | — | 8 | **10** | 10 | 9 |
+| Preguntas fuera de tema con respuesta fija (6) | — | 0 | **6** | 6 | 6 |
 
 ## Actualizar el conocimiento
 
 Cada vez que cambie la wiki: `python herramientas/wiki/construir.py` (regenera tanto
 `bot/conocimiento.js` como `bot/indice_rag.js`) y luego `npx wrangler deploy`.
+
+Al final, `construir.py` llama a `node herramientas/wiki/embeddings.mjs`, que agrega a `indice_rag.js`
+el vector de cada fragmento (Workers AI `@cf/baai/bge-m3`, multilingüe):
+
+- Los vectores se guardan en `wiki/_bot/vectores.json` (fuera de git, como la wiki) con la huella del
+  texto (sha1 de modelo + texto) como clave: **solo los fragmentos nuevos o modificados van a la API**,
+  en lotes de hasta 50 (y de hasta ~120 mil caracteres, porque la API acepta ~60 mil tokens por llamada).
+  Recalcular los ~620 fragmentos desde cero tarda ~35 s.
+- Credenciales: `CLOUDFLARE_API_TOKEN`, o la sesión de `npx wrangler login`. La cuenta sale de
+  `CLOUDFLARE_ACCOUNT_ID`, de `account_id` en `wrangler.toml` o de la primera cuenta del token.
+- Sin Node, sin red o sin credenciales el índice se arma igual: esos fragmentos quedan sin vector y se
+  buscan solo por BM25. Para reusar solo el caché: `node herramientas/wiki/embeddings.mjs --sin-red`.
+- Cuidado con el cupo gratuito de Workers AI (10 000 neuronas por día, se renueva a las 00:00 UTC):
+  recalcular todo el índice gasta una parte apreciable; una pregunta del chat, casi nada.
 
 ## Costos y cuidados
 

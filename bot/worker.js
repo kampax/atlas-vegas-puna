@@ -3,9 +3,15 @@
 // La clave nunca llega al navegador.
 //
 // Variables (wrangler.toml / .dev.vars):
-//   MODO              "rag" (por defecto, recuperación BM25 de fragmentos) o "completo" (wiki entera)
+//   MODO              "rag" (por defecto: fragmentos por búsqueda híbrida BM25 + embeddings, o solo BM25
+//                     si no hay Workers AI) o "completo" (wiki entera)
 //   RAG_K             opcional (modo rag): máximo de fragmentos a enviar (por defecto 8)
 //   RAG_MAX_TOKENS    opcional (modo rag): tope aproximado de tokens de contexto (por defecto 6000)
+//   RAG_PESO_BM25     opcional (modo rag): peso de BM25 en la búsqueda híbrida (por defecto 0.3; el resto
+//                     es similitud de embeddings)
+//   AI                binding de Workers AI ([ai] en wrangler.toml): convierte la pregunta en vector
+//                     (bge-m3) para la búsqueda híbrida. Si falta, se agota el cupo o tarda más de 5 s,
+//                     el modo rag sigue solo con BM25.
 //   PROVEEDOR         "glm", "deepseek" o "gemini". Si falta, se usa el que tenga clave
 //                     (en ese orden: GLM, DeepSeek, Gemini).
 //   RESPALDO          proveedores a probar, en orden, si el principal falla o está saturado
@@ -22,7 +28,40 @@
 
 import CONOCIMIENTO from "./conocimiento.js";
 import { PERSONAJE, REGLA_RAG, RESPUESTA_SIN_DATOS, BLOQUE_ATLAS, PREGUNTA_SOBRE_ATLAS } from "./personaje.js";
-import { buscarFragmentos, armarContextoRag, canonicalizarFuentes, RAG_K_DEFECTO, RAG_MAX_TOKENS_DEFECTO } from "./rag.js";
+import { buscarFragmentos, armarContextoRag, canonicalizarFuentes, textoConsultaVector, RAG_K_DEFECTO,
+  RAG_MAX_TOKENS_DEFECTO, MODELO_VECTORES, TIENE_VECTORES } from "./rag.js";
+
+const TIEMPO_VECTOR_MS = 5000;
+// Si Workers AI falla no se lo vuelve a probar por un rato: 30 min si se agotó el cupo diario gratuito
+// (error 4006, se renueva a las 00:00 UTC), 1 min ante una falla puntual (p. ej. tiempo agotado).
+const ENFRIAMIENTO_AI_CUPO_MS = 30 * 60_000;
+const ENFRIAMIENTO_AI_MS = 60_000;
+let aiFallidoHasta = 0;
+
+// Vector de la pregunta (más la anterior si es una repregunta corta) con Workers AI. Ante cualquier
+// problema devuelve null y la búsqueda sigue solo con BM25, sin error para quien pregunta.
+async function vectorDePregunta(mensajes, env) {
+  if (!env.AI || !TIENE_VECTORES || Date.now() < aiFallidoHasta) return null;
+  const texto = textoConsultaVector(mensajes);
+  if (!texto) return null;
+  let reloj;
+  try {
+    const r = await Promise.race([
+      env.AI.run(MODELO_VECTORES, { text: [texto] }),
+      new Promise((_, no) => { reloj = setTimeout(() => no(new Error("tiempo agotado")), TIEMPO_VECTOR_MS); }),
+    ]);
+    const v = r?.data?.[0];
+    if (!v || typeof v.length !== "number") throw new Error("respuesta sin vector");
+    return v;
+  } catch (e) {
+    const cupo = /4006|daily free allocation|neurons/i.test(String(e?.message || e));
+    aiFallidoHasta = Date.now() + (cupo ? ENFRIAMIENTO_AI_CUPO_MS : ENFRIAMIENTO_AI_MS);
+    console.log("[chat] embeddings no disponibles, sigo con BM25:", e?.message || e);
+    return null;
+  } finally {
+    clearTimeout(reloj);
+  }
+}
 
 // Los tres servicios hablan el formato de chat de OpenAI (Gemini mediante su capa de compatibilidad),
 // así que solo cambian la dirección, la clave, el modelo y cómo se apaga el razonamiento.
@@ -160,7 +199,7 @@ function cabecerasCors(req, env) {
   const origen = req.headers.get("Origin") || "";
   const permitidos = (env.ORIGENES || "").split(",").map(s => s.trim()).filter(Boolean);
   const ok = permitidos.includes(origen) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origen);
-  return ok ? { "Access-Control-Allow-Origin": origen, "Vary": "Origin", "Access-Control-Expose-Headers": "X-Modo, X-Proveedor" } : null;
+  return ok ? { "Access-Control-Allow-Origin": origen, "Vary": "Origin", "Access-Control-Expose-Headers": "X-Modo, X-Proveedor, X-Busqueda" } : null;
 }
 
 function error(estado, mensaje, cors) {
@@ -289,18 +328,27 @@ export default {
 
     let sistema = SISTEMA;
     let refs = ["wiki-completa"];
+    let busqueda = null;
     if (modo === "rag") {
       const k = env.RAG_K ? Number(env.RAG_K) : RAG_K_DEFECTO;
       const maxTokens = env.RAG_MAX_TOKENS ? Number(env.RAG_MAX_TOKENS) : RAG_MAX_TOKENS_DEFECTO;
-      const { fragmentos } = buscarFragmentos(mensajes, { k, maxTokens });
+      // Solo en localhost: ?busqueda=bm25 fuerza BM25 y ?peso=0.5 cambia el peso, para comparar.
+      const pruebaBusqueda = local ? (url.searchParams.get("busqueda") || "").toLowerCase() : "";
+      const pesoPrueba = local && url.searchParams.get("peso") ? Number(url.searchParams.get("peso")) : NaN;
+      const pesoBm25 = Number.isFinite(pesoPrueba) ? pesoPrueba : env.RAG_PESO_BM25 ? Number(env.RAG_PESO_BM25) : undefined;
+      const vector = pruebaBusqueda === "bm25" ? null : await vectorDePregunta(mensajes, env);
+      const res = buscarFragmentos(mensajes, { k, maxTokens, vector, pesoBm25 });
+      const { fragmentos } = res;
+      busqueda = res.busqueda;
       // Sin fragmentos: respuesta fija, salvo que pregunten por el atlas (autoría, contacto, financiamiento...).
       const ultima = mensajes[mensajes.length - 1]?.content || "";
       if (!fragmentos.length && !PREGUNTA_SOBRE_ATLAS.test(ultima)) {
-        console.log(`[chat] modo=rag proveedor=sin-contexto tokens_in=0 refs=[]`);
+        console.log(`[chat] modo=rag busqueda=${busqueda} proveedor=sin-contexto tokens_in=0 refs=[]`);
         const cab = {
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-store",
           "X-Modo": "rag",
+          "X-Busqueda": busqueda,
           "X-Proveedor": "sin-contexto",
           ...(local ? { "X-Tokens-Entrada": "0" } : {}),
           ...cors,
@@ -338,11 +386,12 @@ export default {
       }
       if (r && r.ok && r.body) {
         fallidoHasta.delete(prov.nombre);
-        console.log(`[chat] modo=${modo} proveedor=${prov.nombre} tokens_in=${tokensEst} (est) refs=${JSON.stringify(refs)}`);
+        console.log(`[chat] modo=${modo}${busqueda ? ` busqueda=${busqueda}` : ""} proveedor=${prov.nombre} tokens_in=${tokensEst} (est) refs=${JSON.stringify(refs)}`);
         const cab = {
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-store",
           "X-Modo": modo,
+          ...(busqueda ? { "X-Busqueda": busqueda } : {}),
           "X-Proveedor": prov.nombre,
           ...(local ? { "X-Tokens-Entrada": String(tokensEst) } : {}),
           ...cors,

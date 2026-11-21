@@ -4,11 +4,12 @@ compatibility_date = "2026-10-01"
 
 [vars]
 ORIGENES = "https://kampax.github.io"
-# Modo de contexto: "rag" (fragmentos relevantes por BM25, por defecto) o "completo" (wiki entera)
+# Modo de contexto: "rag" (fragmentos relevantes por BM25 + embeddings, por defecto) o "completo" (wiki entera)
 MODO = "rag"
 # Ajustes opcionales para MODO = "rag":
 # RAG_K = "8"
 # RAG_MAX_TOKENS = "6000"
+# RAG_PESO_BM25 = "0.3"   # búsqueda híbrida: peso de BM25 (el resto es similitud de embeddings)
 # Servicio de respuestas: "glm", "deepseek" o "gemini"
 PROVEEDOR = "glm"
 # Si el principal falla o está saturado, se prueba con estos (en orden, separados por coma)
@@ -21,3 +22,8 @@ MODELO_GEMINI = "gemini-2.5-flash"
 #   npx wrangler secret put GLM_API_KEY
 #   npx wrangler secret put DEEPSEEK_API_KEY
 #   npx wrangler secret put GEMINI_API_KEY
+
+# Workers AI: convierte cada pregunta en vector (bge-m3) para la búsqueda híbrida del modo rag.
+# Si se agota el cupo diario gratuito o falla, el bot sigue solo con BM25.
+[ai]
+binding = "AI"

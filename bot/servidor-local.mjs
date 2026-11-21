@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import worker from "./worker.js";
+import { aiPorRest } from "../herramientas/wiki/embeddings.mjs";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.resolve(aqui, "..");
@@ -22,9 +23,12 @@ function leerDevVars() {
 const env = { MODO: "rag", MODELO: "deepseek-flash", ORIGENES: "", ...leerDevVars() };
 for (const k of ["MODO", "RAG_K", "RAG_MAX_TOKENS", "PROVEEDOR", "GLM_API_KEY", "DEEPSEEK_API_KEY",
   "GEMINI_API_KEY", "MODELO", "MODELO_GEMINI", "MODELO_GLM", "GLM_API_URL", "RESPALDO", "API_URL",
-  "LIMITE_HORA"]) {
+  "LIMITE_HORA", "RAG_PESO_BM25"]) {
   if (process.env[k]) env[k] = process.env[k];
 }
+// Workers AI simulado con la API REST (credenciales de `npx wrangler login` o CLOUDFLARE_API_TOKEN).
+// Sin credenciales, o con SIN_AI=1, el modo rag usa solo BM25, igual que el Worker sin el binding.
+if (!process.env.SIN_AI) { const ai = aiPorRest(); if (ai) env.AI = ai; }
 const modoActivo = (env.MODO || "rag").trim().toLowerCase();
 const ACTIVOS = {
   glm: ["GLM (Z.AI)", env.MODELO_GLM || "glm-4.7-flash", "GLM_API_KEY"],
@@ -69,6 +73,7 @@ http.createServer(async (req, res) => {
   });
 }).listen(PUERTO, () => {
   console.log(`Atlas con chat en http://localhost:${PUERTO}  (modo: ${modoActivo}; ${nombreProv}, ${modeloProv}` +
-    (env.RESPALDO ? `; respaldo: ${env.RESPALDO})` : ")"));
+    (env.RESPALDO ? `; respaldo: ${env.RESPALDO})` : ")") +
+    (modoActivo === "rag" ? (env.AI ? " — búsqueda híbrida (Workers AI por API REST)" : " — búsqueda solo BM25") : ""));
   if (!env[claveProv]) console.log(`Aviso: falta ${claveProv} (variable de entorno o bot/.dev.vars)`);
 });
