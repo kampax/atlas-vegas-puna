@@ -1,6 +1,8 @@
 name = "atlas-vegas-bot"
 main = "worker.js"
 compatibility_date = "2026-10-01"
+# Cuenta de Cloudflare (también la usa herramientas/wiki/embeddings.mjs para llamar a Workers AI)
+account_id = "29d3df693b4d7d59adab2a7cca0fc961"
 
 [vars]
 ORIGENES = "https://kampax.github.io"
