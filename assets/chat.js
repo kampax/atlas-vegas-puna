@@ -77,7 +77,7 @@
       <textarea rows="1" maxlength="1500" placeholder="Escribí tu pregunta…" aria-label="Tu pregunta"></textarea>
       <button type="submit">Enviar</button>
     </form>
-    <p class="chat-nota">Respuestas generadas por IA a partir de una selección de artículos científicos. Pueden tener errores: verificá en las fuentes citadas.</p>`;
+    <p class="chat-nota">Respuestas generadas por IA a partir de una selección de artículos científicos. Pueden tener errores: verificá en las fuentes citadas. <a href="https://github.com/kampax/atlas-vegas-puna#chatbot-bibliogr%C3%A1fico-do%C3%B1a-vicu%C3%B1a" target="_blank" rel="noopener">Cómo está armado (GitHub)</a>.</p>`;
   document.body.append(boton, panel);
 
   const lista = panel.querySelector(".chat-mensajes");
