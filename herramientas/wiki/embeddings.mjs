@@ -24,7 +24,7 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const CACHE = path.join(RAIZ, "wiki", "_bot", "vectores.json");
 const INDICE = path.join(RAIZ, "bot", "indice_rag.js");
 const LOTE = 50;                 // textos por llamada
-const LOTE_CARACTERES = 120_000; // la API admite ~60 mil tokens por llamada en total
+const LOTE_CARACTERES = 80_000;  // la API admite 60 mil tokens por llamada (margen para texto científico en español)
 
 export const huella = texto => crypto.createHash("sha1").update(MODELO + "\n" + texto).digest("hex").slice(0, 20);
 
