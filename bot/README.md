@@ -109,7 +109,7 @@ desplegar (`npx wrangler deploy`). La respuesta incluye siempre la cabecera `X-M
     2200 tokens), así que en preguntas muy comparativas cita menos estudios que `completo`.
 - **`MODO = "completo"`:** envía el personaje + la wiki entera (~410 mil tokens)
   en cada pregunta.
-  - *Ventajas:* el modelo ve los 219 documentos y todas las síntesis a la vez (máxima cobertura para
+  - *Ventajas:* el modelo ve los 241 documentos y todas las síntesis a la vez (máxima cobertura para
     preguntas amplias o comparativas) y los proveedores cachean ese prefijo fijo.
   - *Riesgos / límites:* sin caché es más caro y lento; excede el límite de prompt de `glm-4.7-flash`
     y satura rápido planes gratuitos con tope de tokens por minuto (como Gemini gratis).
