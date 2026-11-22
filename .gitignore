@@ -24,3 +24,8 @@ bot/node_modules/
 __pycache__/
 *.pyc
 *.log
+.venv/
+
+# Salidas intermedias del etiquetado con Gemini Decisions (locales)
+herramientas/etiquetas_decisions_raw.json
+herramientas/revision_dudosas.csv

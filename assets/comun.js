@@ -7,6 +7,30 @@
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
     'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const ETIQUETAS = {
+    agua_superficial: 'Agua superficial',
+    ganado: 'Ganado',
+    fauna_silvestre: 'Fauna silvestre',
+    costra_salina: 'Costra salina',
+    infraestructura: 'Infraestructura',
+    nieve_hielo: 'Nieve / hielo',
+    muestreo_campo: 'Muestreo de campo',
+  };
+  const TIPOS_TOMA = {
+    panoramica_vega: 'Panorámica de vega',
+    detalle_vegetacion_suelo: 'Detalle vegetación / suelo',
+    fauna_o_ganado: 'Fauna o ganado',
+    agua_hidrologia: 'Agua / hidrología',
+    trabajo_de_campo: 'Trabajo de campo',
+    otro: 'Otro',
+  };
+  const VERDOR = {
+    1: 'Muy seco',
+    2: 'Verdor bajo',
+    3: 'Verdor medio',
+    4: 'Verdor alto',
+    5: 'Muy verde',
+  };
 
   const url = {
     foto: id => `${BASE}/fotos/${id}.jpg`,
@@ -121,6 +145,7 @@
         <div class="visor-texto">
           <p class="visor-titulo"></p>
           <p class="visor-detalle"></p>
+          <div class="visor-etiquetas"></div>
           <div class="visor-acciones"></div>
         </div>
         <p class="visor-contador"></p>
@@ -139,6 +164,28 @@
       const autor = document.createElement('a');
       autor.href = AUTOR_URL; autor.target = '_blank'; autor.rel = 'noopener'; autor.textContent = AUTOR;
       det.append(autor, '.');
+      const etqEl = el.querySelector('.visor-etiquetas');
+      etqEl.innerHTML = '';
+      if (f.tipo_toma && TIPOS_TOMA[f.tipo_toma]) {
+        const s = document.createElement('span');
+        s.className = 'visor-chip visor-chip-tipo';
+        s.textContent = TIPOS_TOMA[f.tipo_toma];
+        etqEl.appendChild(s);
+      }
+      if (f.verdor && VERDOR[f.verdor]) {
+        const s = document.createElement('span');
+        s.className = 'visor-chip visor-chip-verdor';
+        s.textContent = `Verdor ${f.verdor}/5`;
+        s.title = `${VERDOR[f.verdor]} (etiqueta asistida por IA)`;
+        etqEl.appendChild(s);
+      }
+      (f.etiquetas || []).forEach(e => {
+        if (!ETIQUETAS[e]) return;
+        const s = document.createElement('span');
+        s.className = 'visor-chip';
+        s.textContent = ETIQUETAS[e];
+        etqEl.appendChild(s);
+      });
       el.querySelector('.visor-contador').textContent = `${idx + 1} de ${lista.length}`;
       const sig = lista[idx + 1];
       if (sig) new Image().src = url.foto(sig.id);
@@ -184,5 +231,6 @@
   }
 
   window.Vegas = { BASE, AUTOR, url, cargarDatos, fechaLarga, hora, altitud, mesAnio, campanias,
-    capasBase, capaPoligonos, crearVisor, slug, estacion, copiar, MESES, MESES_CORTOS };
+    capasBase, capaPoligonos, crearVisor, slug, estacion, copiar, MESES, MESES_CORTOS,
+    ETIQUETAS, TIPOS_TOMA, VERDOR };
 })();

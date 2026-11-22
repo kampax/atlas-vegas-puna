@@ -65,6 +65,25 @@ h1 {
   background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px; background-repeat: no-repeat;
 }
 .lugar select:disabled { opacity: 0.5; cursor: default; }
+.ecologia { margin-top: 14px; font-family: var(--sans); font-size: 13.5px; }
+.eco-cab { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 14px; margin-bottom: 8px; }
+.eco-titulo { font-size: 12.5px; color: var(--tinta-suave); }
+.eco-tipo { display: flex; flex-direction: column; gap: 3px; color: var(--tinta-suave); font-size: 12.5px; min-width: 190px; }
+.eco-tipo select {
+  font: inherit; font-size: 13.5px; color: var(--tinta); background: var(--liquen); border: 1px solid var(--linea);
+  border-radius: 6px; padding: 6px 28px 6px 10px; appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--tinta-suave) 50%), linear-gradient(135deg, var(--tinta-suave) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%; background-size: 5px 5px; background-repeat: no-repeat;
+}
+.etiquetas { display: flex; flex-wrap: wrap; gap: 6px; }
+.etiquetas button {
+  border: 1px solid var(--linea); background: transparent; color: var(--tinta);
+  border-radius: 999px; padding: 4px 11px; font-size: 13px; transition: background .12s, border-color .12s;
+}
+.etiquetas button:hover:not(:disabled) { border-color: var(--vega); }
+.etiquetas button[aria-pressed="true"] { background: var(--vega); color: var(--liquen); border-color: var(--vega); }
+.etiquetas button:disabled { opacity: 0.4; cursor: default; }
+.etiquetas .n { opacity: 0.72; font-size: 12px; margin-left: 3px; }
 .filtro-activo { margin-top: 12px; font-family: var(--sans); font-size: 13.5px; color: var(--tinta-suave); }
 .filtro-activo button { border: none; background: none; color: var(--agua); padding: 0; text-decoration: underline; text-underline-offset: 3px; font-size: 13.5px; }
 .filtro-activo .btn-comparar {
@@ -78,7 +97,16 @@ h1 {
 }
 .lugares .enlace-vega:hover, .lugares .enlace-vega:focus-visible { color: var(--vega); text-decoration-color: var(--vega); }
 
-/* Acciones dentro del visor */
+/* Acciones y etiquetas dentro del visor */
+.visor-etiquetas { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.visor-etiquetas:empty { display: none; }
+.visor-chip {
+  font-family: var(--sans); font-size: 11.5px; line-height: 1.2;
+  color: rgba(238,241,234,0.88); background: rgba(238,241,234,0.1);
+  border: 1px solid rgba(238,241,234,0.22); border-radius: 999px; padding: 3px 9px;
+}
+.visor-chip-tipo { border-color: rgba(181,137,58,0.5); color: #ebd4a7; }
+.visor-chip-verdor { border-color: rgba(127,209,139,0.45); color: #bce6c2; }
 .visor-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .visor-acciones:empty { display: none; }
 .visor-acciones button {
@@ -283,6 +311,13 @@ body.visor-abierto .diario { visibility: hidden; }
         <label>Departamento<select id="sel-departamento"></select></label>
         <label>Vega<select id="sel-vega"></select></label>
       </div>
+      <div class="ecologia">
+        <div class="eco-cab">
+          <span class="eco-titulo">Contenido ecológico</span>
+          <label class="eco-tipo">Tipo de toma<select id="sel-tipo"></select></label>
+        </div>
+        <div class="etiquetas" id="etiquetas" role="group" aria-label="Filtrar por contenido ecológico"></div>
+      </div>
       <p class="filtro-activo" id="filtro-activo" hidden></p>
     </header>
     <div id="campanias"></div>
@@ -292,6 +327,7 @@ body.visor-abierto .diario { visibility: hidden; }
       <p>Las vegas son humedales de altura alimentados por agua subterránea principalmente; sostienen la ganadería local y gran parte de la biodiversidad de la Puna. Este sitio las muestra tal como se ven en el terreno, ordenadas por lugar y fecha.</p>
       <p>Algunas fotos no tienen GPS. Su ubicación se estimó y en el mapa se marca como aproximada.</p>
       <p>La altitud de cada foto proviene del modelo digital de elevación Copernicus DEM GLO-30 (30 m), extraído con Google Earth Engine en el punto donde se tomó.</p>
+      <p>Las etiquetas de contenido ecológico, tipo de toma y verdor se generan con asistencia de inteligencia artificial (<code>gemini-decision-1</code>) a partir de cada fotografía como apoyo para explorar el archivo.</p>
       <p>Fotografías: <a href="https://www.researchgate.net/profile/Carlos-Javier-Navarro" target="_blank" rel="noopener">Carlos Javier Navarro</a>.</p>
       <aside class="apoyo" aria-labelledby="apoyo-titulo">
         <h3 id="apoyo-titulo">Con el apoyo de</h3>
@@ -448,11 +484,21 @@ body.visor-abierto .diario { visibility: hidden; }
   mapa.on('zoomend', estilizarLimites);
 
   const capaFotos = L.layerGroup().addTo(mapa);
-  let anioActivo = 'todos', provActiva = '', deptoActivo = '', vegaActiva = '';
+  let anioActivo = 'todos', provActiva = '', deptoActivo = '', vegaActiva = '', tipoActivo = '';
+  const etiquetasActivas = new Set();
   const porAnio = () => fotos.filter(f => anioActivo === 'todos' || (f.fecha || '').startsWith(anioActivo));
+  const cumpleEtiquetas = (f, omitir = '') => {
+    for (const e of etiquetasActivas) {
+      if (e !== omitir && !(f.etiquetas || []).includes(e)) return false;
+    }
+    return true;
+  };
+  const porEco = lista => lista.filter(f =>
+    (!tipoActivo || f.tipo_toma === tipoActivo) && cumpleEtiquetas(f));
   const enLugar = () => porAnio().filter(f =>
     (!provActiva || f.provincia === provActiva) && (!deptoActivo || f.departamento === deptoActivo));
-  const visibles = () => enLugar().filter(f => !vegaActiva || f.vega === vegaActiva);
+  const enLugarYVega = () => enLugar().filter(f => !vegaActiva || f.vega === vegaActiva);
+  const visibles = () => porEco(enLugarYVega());
 
   // Campañas (mes y año) en que se fotografió cada vega, sin importar los filtros
   const campaniasDeVega = {};
@@ -462,16 +508,19 @@ body.visor-abierto .diario { visibility: hidden; }
   });
   const comparable = v => v && campaniasDeVega[v] && campaniasDeVega[v].size > 1;
 
-  // Filtros de provincia, departamento y vega (las cifras dependen del año elegido)
+  // Filtros de provincia, departamento, vega y contenido ecológico
   const selP = document.getElementById('sel-provincia'), selD = document.getElementById('sel-departamento');
-  const selV = document.getElementById('sel-vega');
+  const selV = document.getElementById('sel-vega'), selT = document.getElementById('sel-tipo');
+  const barraEtq = document.getElementById('etiquetas');
+  const clavesEtiquetas = Object.keys(V.ETIQUETAS);
+  const clavesTipos = Object.keys(V.TIPOS_TOMA);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const ordenar = arr => arr.sort((a, b) => a.localeCompare(b, 'es'));
   function contar(lista, campo) {
     return lista.reduce((m, f) => { if (f[campo]) m[f[campo]] = (m[f[campo]] || 0) + 1; return m; }, {});
   }
   function opcionesLugar() {
-    const base = porAnio();
+    const base = porEco(porAnio());
     const cp = contar(base, 'provincia');
     if (provActiva && !cp[provActiva]) provActiva = '';
     selP.innerHTML = `<option value="">Todas (${base.length} fotos)</option>` +
@@ -494,17 +543,52 @@ body.visor-abierto .diario { visibility: hidden; }
     selV.value = vegaActiva;
     selV.disabled = !Object.keys(cv).length;
   }
+  function opcionesEco() {
+    const baseLugar = enLugarYVega();
+    const conEtq = baseLugar.filter(f => cumpleEtiquetas(f));
+    const ct = contar(conEtq, 'tipo_toma');
+    selT.innerHTML = `<option value="">Todos (${conEtq.length} fotos)</option>` +
+      clavesTipos.filter(t => ct[t] || t === tipoActivo).map(t =>
+        `<option value="${esc(t)}">${esc(V.TIPOS_TOMA[t])} (${ct[t] || 0})</option>`).join('');
+    selT.value = tipoActivo;
+
+    const conTipo = baseLugar.filter(f => !tipoActivo || f.tipo_toma === tipoActivo);
+    barraEtq.innerHTML = clavesEtiquetas.map(k => {
+      const activa = etiquetasActivas.has(k);
+      const n = conTipo.filter(f => cumpleEtiquetas(f, k) && (f.etiquetas || []).includes(k)).length;
+      return `<button type="button" data-e="${esc(k)}" aria-pressed="${activa}"${!activa && n === 0 ? ' disabled' : ''}>${esc(V.ETIQUETAS[k])}<span class="n">(${n})</span></button>`;
+    }).join('');
+    barraEtq.querySelectorAll('button').forEach(b => b.onclick = () => {
+      const k = b.dataset.e;
+      if (etiquetasActivas.has(k)) etiquetasActivas.delete(k); else etiquetasActivas.add(k);
+      aplicar();
+      encuadrar(visibles());
+    });
+  }
   function textoFiltro() {
     const el = document.getElementById('filtro-activo');
     const lugar = vegaActiva ? `la vega ${vegaActiva}`
       : deptoActivo ? `${deptoActivo}, ${provinciaDe[deptoActivo]}` : provActiva;
-    el.hidden = !lugar;
-    if (lugar) {
+    const eco = [];
+    if (tipoActivo && V.TIPOS_TOMA[tipoActivo]) eco.push(V.TIPOS_TOMA[tipoActivo].toLowerCase());
+    [...etiquetasActivas].forEach(k => { if (V.ETIQUETAS[k]) eco.push(V.ETIQUETAS[k].toLowerCase()); });
+    const hayFiltro = Boolean(lugar || eco.length);
+    el.hidden = !hayFiltro;
+    if (hayFiltro) {
       const n = visibles().length;
       const comp = vegaActiva && comparable(vegaActiva)
         ? `<button class="btn-comparar" id="btn-comparar">Comparar en ${campaniasDeVega[vegaActiva].size} campañas</button>` : '';
-      el.innerHTML = `${n} foto${n === 1 ? '' : 's'} de ${esc(lugar)}${anioActivo !== 'todos' ? ' en ' + anioActivo : ''}. ${comp}<button id="btn-quitar">Quitar filtros de lugar</button>`;
-      document.getElementById('btn-quitar').onclick = () => { provActiva = deptoActivo = vegaActiva = ''; aplicar(); encuadrar(visibles()); };
+      const partes = [`${n} foto${n === 1 ? '' : 's'}`];
+      if (lugar) partes.push(`de ${esc(lugar)}`);
+      if (eco.length) partes.push(`con ${esc(eco.join(' + '))}`);
+      if (anioActivo !== 'todos') partes.push(`en ${anioActivo}`);
+      el.innerHTML = `${partes.join(' ')}. ${comp}<button id="btn-quitar">Quitar filtros</button>`;
+      document.getElementById('btn-quitar').onclick = () => {
+        provActiva = deptoActivo = vegaActiva = tipoActivo = '';
+        etiquetasActivas.clear();
+        aplicar();
+        encuadrar(visibles());
+      };
       if (comp) document.getElementById('btn-comparar').onclick = () => abrirComparacion(vegaActiva);
     }
   }
@@ -540,8 +624,9 @@ body.visor-abierto .diario { visibility: hidden; }
     movimientoReducido ? mapa.fitBounds(b, { padding: [30, 30] }) : mapa.flyToBounds(b, { padding: [30, 30], duration: 0.8 });
   }
   function aplicar() {
-    opcionesLugar(); dibujarMapa(); dibujarDiario(); estilizarLimites(); textoFiltro(); marcarVega(); escribirHash();
+    opcionesLugar(); opcionesEco(); dibujarMapa(); dibujarDiario(); estilizarLimites(); textoFiltro(); marcarVega(); escribirHash();
   }
+  selT.onchange = () => { tipoActivo = selT.value; aplicar(); encuadrar(visibles()); };
   selP.onchange = () => { provActiva = selP.value; deptoActivo = ''; vegaActiva = ''; aplicar(); provActiva ? encuadrarLugar() : encuadrar(visibles()); };
   selD.onchange = () => {
     deptoActivo = selD.value; vegaActiva = '';
@@ -601,7 +686,7 @@ body.visor-abierto .diario { visibility: hidden; }
   function dibujarDiario() {
     const camps = V.campanias(visibles());
     if (!camps.length) {
-      contenedor.innerHTML = '<p class="sin-fotos">No hay fotos para esta combinación de año y lugar. Elige otro año o «Todas» en provincia.</p>';
+      contenedor.innerHTML = '<p class="sin-fotos">No hay fotos para esta combinación de filtros. Prueba quitando alguna etiqueta o eligiendo «Todas» en provincia.</p>';
       return;
     }
     let ultimoAnio = null;
@@ -729,6 +814,10 @@ body.visor-abierto .diario { visibility: hidden; }
     if (leyendoHash) return;
     const p = new URLSearchParams();
     if (anioActivo !== 'todos') p.set('anio', anioActivo);
+    if (etiquetasActivas.size) {
+      p.set('etiqueta', clavesEtiquetas.filter(k => etiquetasActivas.has(k)).join(','));
+    }
+    if (tipoActivo) p.set('tipo', tipoActivo);
     if (provActiva) p.set('provincia', V.slug(provActiva));
     if (deptoActivo) p.set('departamento', V.slug(deptoActivo));
     if (vegaActiva) p.set('vega', V.slug(vegaActiva));
@@ -750,6 +839,13 @@ body.visor-abierto .diario { visibility: hidden; }
     const a = p.get('anio');
     anioActivo = a && anios.includes(a) ? a : 'todos';
     marcarAnio();
+    etiquetasActivas.clear();
+    p.getAll('etiqueta').forEach(v => v.split(',').forEach(k => {
+      const limpio = k.trim();
+      if (clavesEtiquetas.includes(limpio)) etiquetasActivas.add(limpio);
+    }));
+    const t = p.get('tipo');
+    tipoActivo = t && clavesTipos.includes(t) ? t : '';
     provActiva = buscar([...new Set(fotos.map(f => f.provincia).filter(Boolean))], p.get('provincia'));
     deptoActivo = buscar(Object.keys(provinciaDe), p.get('departamento'));
     if (deptoActivo && !provActiva) provActiva = provinciaDe[deptoActivo];
