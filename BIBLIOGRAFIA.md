@@ -1,6 +1,6 @@
 # Bibliografía del chatbot (Doña Vicuña)
 
-Listado de los **241 documentos científicos** (1997–2026) sobre vegas, bofedales, turberas y humedales altoandinos utilizados como base de conocimiento del chat.
+Listado de los **243 documentos científicos** (1997–2026) sobre vegas, bofedales, turberas y humedales altoandinos utilizados como base de conocimiento del chat.
 
 ¿Conocés algún trabajo que falte? Podés sugerirlo abriendo un **Issue** en este repositorio con el título, año y DOI (o enlace) del artículo.
 
@@ -17,6 +17,7 @@ Listado de los **241 documentos científicos** (1997–2026) sobre vegas, bofeda
 | Souza et al. | 2025 | Review of the current knowledge and identified gaps in assessing the social and environmental impacts of mining processes in the Lithium Triangle | [10.1016/j.spc.2024.11.031](https://doi.org/10.1016/j.spc.2024.11.031) | Minería y extracción de agua, Hidrología, Comunidades y gobernanza, Conservación y restauración |
 | Sánchez et al. | 2025 | The Impacts of Peatland Restoration on Biodiversity: A Rapid Evidence Assessment from the Andes and Hindu Kush Himalayas | [10.21203/rs.3.rs-8389176/v1](https://doi.org/10.21203/rs.3.rs-8389176/v1) | Conservación y restauración, Vegetación, Hidrología, Pastoreo |
 | Gribbin et al. | 2024 | Bofedal wetland and glacial melt contributions to dry season streamflow in a high-Andean headwater watershed | [10.1002/hyp.15237](https://doi.org/10.1002/hyp.15237) | Hidrología, Cambio climático |
+| García Lino et al. | 2024 | Carbon dynamics in high-Andean tropical cushion peatlands: A review of geographic patterns and potential drivers | [10.1002/ecm.1614](https://doi.org/10.1002/ecm.1614) | Carbono y gases de efecto invernadero, Suelos y turba, Cambio climático, Paleoambiente |
 | Hribljan et al. | 2024 | Elevation and temperature are strong predictors of long-term carbon accumulation across tropical Andean mountain peatlands | [10.1007/s11027-023-10089-y](https://doi.org/10.1007/s11027-023-10089-y) | Carbono y gases de efecto invernadero, Suelos y turba, Cambio climático, Paleoambiente |
 | Chiappero et al. | 2024 | Experimental warming increases respiration and affects microbial communities of soil wetlands at different elevations of the Argentinean Puna | [10.1007/s42832-024-0242-6](https://doi.org/10.1007/s42832-024-0242-6) | Cambio climático, Carbono y gases de efecto invernadero, Microbiología, Suelos y turba |
 | Mlewski et al. | 2024 | Exploring Soil Bacterial Diversity in Relation to Edaphic Physicochemical Properties of High-altitude Wetlands from Argentine Puna | [10.1007/s00248-023-02316-5](https://doi.org/10.1007/s00248-023-02316-5) | Microbiología, Suelos y turba, Vegetación |
@@ -57,6 +58,7 @@ Listado de los **241 documentos científicos** (1997–2026) sobre vegas, bofeda
 | King et al. | 2021 | Diatoms and other siliceous indicators track the ontogeny of a bofedal (wetland) ecosystem in the Peruvian Andes | — | Paleoambiente, Microbiología, Suelos y turba, Cambio climático |
 | Heine-Fuster et al. | 2021 | Differentiation of Diatom Guilds in Extreme Environments in the Andean Altiplano | [10.3389/fenvs.2021.701970](https://doi.org/10.3389/fenvs.2021.701970) | Microbiología, Minería y extracción de agua, Conservación y restauración |
 | Quispe Mamani et al. | 2021 | Diversity of aquatic macroinvertebrates and water quality of the High Andean wetlands of Chalhuanca, Arequipa-Peru | [10.31396/Biodiv.Jour.2021.12.2.517.528](https://doi.org/10.31396/Biodiv.Jour.2021.12.2.517.528) | Fauna, Hidrología, Pastoreo, Conservación y restauración |
+| Munk et al. | 2021 | Hydrogeologic and Geochemical Distinctions in Freshwater-Brine Systems of an Andean Salar | [10.1029/2020GC009345](https://doi.org/10.1029/2020GC009345) | Hidrología, Minería y extracción de agua, Teledetección y mapeo |
 | Valois et al. | 2021 | Improving the underground structural characterization and hydrological functioning of an Andean peatland using geoelectrics and water stable isotopes in semi-arid Chile | [10.1007/s12665-020-09331-6](https://doi.org/10.1007/s12665-020-09331-6) | Hidrología |
 | Patiño et al. | 2021 | Influence of land use on hydro-physical soil properties of Andean páramos and its effect on streamflow buffering | — | Suelos y turba, Hidrología, Pastoreo, Conservación y restauración |
 | Villafañe et al. | 2021 | Las Quínoas oncoids: a new deposit of microbialites in the Salar de Antofalla (Catamarca, Argentina) | [10.5027/andgeoV48n2-3292](https://doi.org/10.5027/andgeoV48n2-3292) | Microbiología, Hidrología |
