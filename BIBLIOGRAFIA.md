@@ -1,6 +1,6 @@
 # Bibliografía del chatbot (Doña Vicuña)
 
-Listado de los **243 documentos científicos** (1997–2026) sobre vegas, bofedales, turberas y humedales altoandinos utilizados como base de conocimiento del chat.
+Listado de los **245 documentos científicos** (1997–2026) sobre vegas, bofedales, turberas y humedales altoandinos utilizados como base de conocimiento del chat.
 
 ¿Conocés algún trabajo que falte? Podés sugerirlo abriendo un **Issue** en este repositorio con el título, año y DOI (o enlace) del artículo.
 
@@ -81,6 +81,7 @@ Listado de los **243 documentos científicos** (1997–2026) sobre vegas, bofeda
 | Izquierdo et al. | 2020 | Multi-taxon patterns from high Andean peatlands: assessing climatic and landscape variables | [10.1007/s42974-020-00029-0](https://doi.org/10.1007/s42974-020-00029-0) | Fauna, Vegetación, Definición y clasificación |
 | Grau et al. | 2020 | Pathways of megaherbivore rewilding transitions: typologies from an Andean gradient | [10.1525/elementa.415](https://doi.org/10.1525/elementa.415) | Pastoreo, Fauna, Vegetación, Conservación y restauración |
 | Oyague y Cooper | 2020 | Peatlands of the Central Andes Puna, South America | — | Hidrología, Suelos y turba, Pastoreo, Conservación y restauración |
+| Navarro | 2020 | Respuesta funcional de las vegas de la Puna argentina a la interacción entre cambios climáticos y cambios de uso del suelo | — | Hidrología, Vegetación, Pastoreo, Cambio climático |
 | Navarro et al. | 2020 | Rewilding of large herbivore communities in high elevation Puna: geographic segregation and no evidence of positive effects on peatland productivity | [10.1007/s10113-020-01704-8](https://doi.org/10.1007/s10113-020-01704-8) | Pastoreo, Fauna, Teledetección y mapeo, Cambio climático |
 | Planas-Clarke et al. | 2020 | The effect of water table levels and short-term ditch restoration on mountain peatland carbon cycling in the Cordillera Blanca, Peru | [10.1007/s11273-019-09694-z](https://doi.org/10.1007/s11273-019-09694-z) | Carbono y gases de efecto invernadero, Conservación y restauración, Hidrología, Vegetación |
 | Ruthsatz et al. | 2020 | The vegetation of cushion peatlands in the Argentine Andes and changes in their floristic composition across a latitudinal gradient from 39°S to 22°S | [10.1127/phyto/2020/0374](https://doi.org/10.1127/phyto/2020/0374) | Vegetación, Definición y clasificación, Hidrología, Conservación y restauración |
@@ -203,6 +204,7 @@ Listado de los **243 documentos científicos** (1997–2026) sobre vegas, bofeda
 | Cepeda-Pizarro | 2013 | Variabilidad temporal de algunos parámetros físicos e hidroquímicos de un prado húmedo alto-andino del norte-centro de Chile | — | Hidrología, Suelos y turba, Minería y extracción de agua, Conservación y restauración |
 | Baldassini et al. | 2012 | Caracterización regional de la estructura y de la productividad de la vegetación de la Puna mediante el uso de imágenes MODIS | — | Vegetación, Teledetección y mapeo, Pastoreo, Hidrología |
 | Schmidt-Mumm y Vargas Ríos | 2012 | Comunidades vegetales de las transiciones terrestre-acuáticas del páramo de Chingaza, Colombia | — | Vegetación, Definición y clasificación, Pastoreo, Conservación y restauración |
+| Tchilinguirian y Olivera | 2012 | Degradación y formación de vegas puneñas (900-150 años AP), Puna Austral (26 S) ¿Respuesta del paisaje al clima o al hombre? | — | Paleoambiente, Hidrología, Conservación y restauración, Arqueología y ocupación humana |
 | Zorogastúa-Cruz et al. | 2012 | Dinamica de los bofedales en el altiplano peruano-boliviano | — | Teledetección y mapeo, Vegetación, Pastoreo, Cambio climático |
 | Mosca Torres y Puig | 2012 | Habitat use and selection by the vicuña (Vicugna vicugna, Camelidae) during summer and winter in the High Andean Puna of Argentina | [10.1016/j.smallrumres.2011.11.002](https://doi.org/10.1016/j.smallrumres.2011.11.002) | Fauna, Vegetación |
 | Salazar-Torres y Huszar | 2012 | Microalgae community of the Huaytire wetland, an Andean high-altitude wetland in Peru | [10.1590/S2179-975X2012005000046](https://doi.org/10.1590/S2179-975X2012005000046) | Microbiología, Pastoreo |
