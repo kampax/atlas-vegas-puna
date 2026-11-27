@@ -10,7 +10,7 @@ Las vegas (o bofedales) son humedales de altura alimentados principalmente por a
 - **465 fotografías** de 19 campañas de campo, entre 2016 y 2026.
 - 244 con la ubicación GPS de la cámara y 221 con ubicación aproximada.
 - Altitudes de 3.012 a 4.778 m s. n. m.
-- 22 vegas de muestreo reconocidas en las fotos; 11 fotografiadas en más de una campaña.
+- 47 vegas identificadas en las fotos (26 de ellas son puntos de muestreo); 15 fotografiadas en más de una campaña.
 <!-- /auto:cifras -->
 
 ## Qué muestra
@@ -30,9 +30,9 @@ Las vegas (o bofedales) son humedales de altura alimentados principalmente por a
 | Vega | Campañas |
 |---|---:|
 | Antofalla | 5 |
-| Antofagasta, Botijuela, Las Quinoas, Olacapato chico, Quebrada del diablo | 4 |
-| Real Grande | 3 |
-| Aguas Calientes abajo, Laguna antofagasta, Loro Huasi, Tocomar | 2 |
+| Antofagasta, Botijuela, Las Quinoas, Olacapato chico, Quebrada del diablo, Real Grande | 4 |
+| Las pitas, Trapiche | 3 |
+| Aguas Calientes abajo, Laguna antofagasta, Loro Huasi, Matadero, Tocomar, Vega Sinuosa | 2 |
 <!-- /auto:comparables -->
 
 En el mapa, un punto **lleno** indica que la foto tiene la ubicación GPS de la cámara. Un punto **hueco** indica una ubicación **aproximada**, estimada a partir de la hora de la toma, del nombre de la vega o del paisaje.
@@ -42,30 +42,30 @@ Cada foto muestra además su **altitud**. Es un dato fijo, obtenido del modelo d
 ## Campañas
 
 <!-- auto:campanias -->
-| Campaña | Fotos | Vegas reconocidas |
+| Campaña | Fotos | Vegas identificadas |
 |---|---:|---|
-| Abril de 2016 | 29 |  |
-| Febrero de 2017 | 3 |  |
+| Abril de 2016 | 29 | Abra Aparejo, Cortaderas, Incahuasi, La 40, Las Peladas |
+| Febrero de 2017 | 3 | Matadero |
 | Agosto de 2017 | 7 | Antofalla, Botijuela, Las Quinoas, Quebrada del diablo |
 | Noviembre de 2017 | 10 | Antofalla, Botijuela, Loro Huasi, Pozo bravo, Quebrada del diablo |
 | Febrero de 2018 | 20 | Antofalla, Botijuela, Las Quinoas, Loro Huasi, Quebrada del diablo |
-| Marzo de 2018 | 13 |  |
+| Marzo de 2018 | 13 | Matadero, Vega Laguna Huaca Huasi, Vega Sinuosa |
 | Mayo de 2018 | 11 | Las pitas, Real Grande |
 | Septiembre de 2018 | 10 | Antofagasta, Laguna antofagasta |
 | Enero de 2019 | 6 |  |
 | Febrero de 2019 | 2 | Tocomar |
 | Marzo de 2019 | 20 | Antofagasta, Antofalla, Botijuela, Las Quinoas, Quebrada del diablo |
-| Febrero de 2021 | 87 | Acay norte, Acay sur, Antofagasta, Real Grande |
-| Mayo de 2021 | 20 | Olacapato chico |
-| Octubre de 2021 | 66 | Antofalla, Laguna blanca pueblo, Las Quinoas, Olacapato chico, Punta de la Peña, Real Grande |
-| Diciembre de 2021 | 68 | Aguas Calientes abajo, Maktud, Nac. Aguas Calientes, Parinayu, Río Los Patos abajo, Río Los Patos arriba |
-| Febrero de 2026 | 32 | Aguas Calientes abajo, Antofagasta, Laguna antofagasta, Olacapato chico |
-| Marzo de 2026 | 5 | Tocomar |
-| Junio de 2026 | 52 | Olacapato chico |
-| Septiembre de 2026 | 4 |  |
+| Febrero de 2021 | 87 | Acay norte, Acay sur, Antofagasta, Cementerio, Las Cuevas, Mirihuaca, Real Grande, San Antonio de los Cobres |
+| Mayo de 2021 | 20 | Las pitas, Olacapato chico, Real Grande |
+| Octubre de 2021 | 66 | Alazán, Antofalla, Laguna blanca pueblo, Las pitas, Las Quinoas, Olacapato chico, Punta de la Peña, Real Grande, Vega Sinuosa |
+| Diciembre de 2021 | 68 | Aguas Calientes abajo, Maktud, Nac. Aguas Calientes, Parinayu, Río Los Patos abajo, Río Los Patos arriba, Trapiche |
+| Febrero de 2026 | 32 | Aguas Calientes abajo, Antofagasta, Cacao, Laguna antofagasta, Olacapato chico, Paicuqui arriba, Rincón, Trapiche, Vega Laguna |
+| Marzo de 2026 | 5 | Huancar, Tocomar |
+| Junio de 2026 | 52 | Carachi Pampa, Los Nacimientos, Olacapato chico, Paicuqui abajo, Quebrada de Curuto, Quebrada Seca |
+| Septiembre de 2026 | 4 | Peñas Blancas, Trapiche |
 <!-- /auto:campanias -->
 
-Una foto se asocia a una vega cuando está a menos de 3 km de uno de los puntos de muestreo.
+Cada foto lleva el nombre de la vega donde se tomó. Si está a menos de 3 km de uno de los puntos de muestreo, se usa el nombre de ese punto; si no, el nombre con que se identificó la vega en el campo.
 
 ## Provincias y departamentos
 
@@ -120,7 +120,7 @@ Cada foto de `data/fotos.json` tiene estos campos:
 | `fecha` | Fecha y hora de la toma (`AAAA-MM-DD HH:MM`) |
 | `lat`, `lon` | Coordenadas en WGS84 |
 | `precision` | `exacta` (GPS de la cámara) o `aproximada` |
-| `vega` | Vega de muestreo más cercana, si está a menos de 3 km |
+| `vega` | Nombre de la vega: el punto de muestreo más cercano si está a menos de 3 km, o la vega identificada en el campo |
 | `ancho`, `alto` | Tamaño en píxeles de la foto publicada |
 | `altitud` | Altitud en metros sobre el nivel del mar (Copernicus DEM GLO-30) |
 | `provincia`, `departamento` | Provincia y departamento de la Puna donde se tomó la foto |
