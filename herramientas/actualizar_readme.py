@@ -1,8 +1,10 @@
 """Regenera los bloques <!-- auto:... --> del README a partir de data/fotos.json.
 
 Uso, desde la raíz del repositorio:
-    python herramientas/actualizar_readme.py
+    python herramientas/actualizar_readme.py              # reescribe el README
+    python herramientas/actualizar_readme.py --verificar  # solo avisa si está desactualizado
 """
+import sys
 import json
 import re
 import unicodedata
@@ -30,7 +32,8 @@ def campania(mes):
     return f"{MESES[int(m) - 1]} de {anio}"
 
 
-def main():
+def readme_actualizado():
+    """Devuelve (texto actual, texto con los bloques auto regenerados)."""
     fotos = json.loads((RAIZ / "data" / "fotos.json").read_text(encoding="utf-8"))["fotos"]
     geo = json.loads((RAIZ / "data" / "vegas_muestreadas.geojson").read_text(encoding="utf-8"))
     puntos = {f["properties"]["nombre"] for f in geo["features"]}
@@ -85,7 +88,21 @@ def main():
         texto, n = patron.subn(lambda m: m.group(1) + contenido + m.group(2), texto)
         if n != 1:
             raise SystemExit(f"No se encontró el bloque auto:{nombre} en el README")
-    README.write_bytes(texto.replace("\n", fin_linea).encode("utf-8"))
+    return crudo, texto.replace("\n", fin_linea)
+
+
+def main():
+    actual, nuevo = readme_actualizado()
+    if "--verificar" in sys.argv[1:]:
+        if actual != nuevo:
+            print("El README está desactualizado: correr python herramientas/actualizar_readme.py")
+            sys.exit(1)
+        print("README al día.")
+        return
+    if actual == nuevo:
+        print("README al día, sin cambios.")
+        return
+    README.write_bytes(nuevo.encode("utf-8"))
     print("README actualizado.")
 
 

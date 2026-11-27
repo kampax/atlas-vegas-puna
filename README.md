@@ -109,8 +109,12 @@ data/puna.geojson                Borde del área de la Puna argentina
 data/departamentos.geojson       Departamentos de la Puna, recortados al borde, con su provincia
 fotos/                           Fotos para el visor (máx. 1600 px)
 miniaturas/                      Miniaturas (máx. 480 px)
+herramientas/                    Scripts para regenerar el README, validar los datos y etiquetar fotos
 BIBLIOGRAFIA.md                  Listado de artículos científicos usados por el chatbot
+PROCESO.md                       Cómo agregar fotos, corregir datos o sumar bibliografía
 ```
+
+Para incorporar información nueva (fotos de una campaña, correcciones, puntos de muestreo o artículos para el chat), seguir [PROCESO.md](PROCESO.md).
 
 Cada foto de `data/fotos.json` tiene estos campos:
 
